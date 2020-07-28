@@ -1,0 +1,140 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
+# https://serhack.me/articles/monitoring-infrastructure-grafana-influxdb-connectd/
+
+# https://grafana.com/docs/grafana/latest/administration/provisioning/#reusable-dashboard-urls
+
+# https://sysadmins.co.za/setup-prometheus-and-node-exporter-on-linux-for-epic-monitoring/
+
+# https://inuits.eu/blog/prometheus-tls/
+
+Vagrant.configure("2") do |config|
+
+  $script_install_node_exporter = <<-SCRIPT
+    #!/bin/bash
+    set -xe
+    apt-get -yq update
+
+    echo "192.168.18.8 grafana.vagrant.local" >> /etc/hosts
+    echo "192.168.18.9 prometheus.vagrant.local" >> /etc/hosts
+    echo "192.168.18.11 node1.vagrant.local" >> /etc/hosts
+    echo "192.168.18.12 node2.vagrant.local" >> /etc/hosts
+    echo "192.168.18.13 node3.vagrant.local" >> /etc/hosts
+
+    useradd --no-create-home --shell /bin/false node_exporter
+
+    mkdir -p /etc/node_exporter/ssl
+    cp /vagrant-node_exporter/node_exporter.crt /etc/node_exporter/ssl/
+    cp /vagrant-node_exporter/node_exporter.key /etc/node_exporter/ssl/
+    cp /vagrant-node_exporter/web.yml /etc/node_exporter/
+    chown -R node_exporter:node_exporter /etc/node_exporter/
+
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v1.0.1/node_exporter-1.0.1.linux-amd64.tar.gz
+    tar -xzvf node_exporter-*.*.tar.gz
+    cp node_exporter-1.0.1.linux-amd64/node_exporter /usr/local/bin
+    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+    rm -rf node_exporter-1.0.1.linux-amd64/*
+
+    cp /vagrant-node_exporter/node_exporter.service /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl start node_exporter
+    systemctl enable node_exporter
+
+    SCRIPT
+
+
+  config.vm.define "prometheus" do |config|
+    config.vm.hostname = "prometheus"
+    config.vm.box = "generic/ubuntu1804"
+    config.vm.network "private_network", ip: "192.168.18.9"
+    config.vm.network "forwarded_port", guest: 9090, host: 9090
+    config.vm.synced_folder "./prometheus", "/vagrant", type: "rsync", rsync__exclude: ".git/"
+    config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
+    config.vm.provision "shell", keep_color: true, inline: <<-'SCRIPT'
+      #!/bin/bash
+      set -x
+      apt-get -yq update
+
+      useradd --no-create-home --shell /bin/false prometheus
+      mkdir /etc/prometheus
+      mkdir /var/lib/prometheus
+      chown prometheus:prometheus /etc/prometheus
+      chown prometheus:prometheus /var/lib/prometheus
+
+      wget -q https://github.com/prometheus/prometheus/releases/download/v2.20.0/prometheus-2.20.0.linux-amd64.tar.gz
+      tar xvfz prometheus-*.tar.gz
+      cp prometheus-2.20.0.linux-amd64/prometheus /usr/local/bin/
+      cp prometheus-2.20.0.linux-amd64/promtool /usr/local/bin/
+      chown prometheus:prometheus /usr/local/bin/prometheus
+      chown prometheus:prometheus /usr/local/bin/promtool
+
+      cp -r prometheus-2.20.0.linux-amd64/consoles /etc/prometheus/
+      cp -r prometheus-2.20.0.linux-amd64/console_libraries /etc/prometheus/
+      cp /vagrant/prometheus.yml /etc/prometheus/
+      chown -R prometheus:prometheus /etc/prometheus/
+      chown -R prometheus:prometheus /etc/prometheus/consoles
+      chown -R prometheus:prometheus /etc/prometheus/console_libraries
+
+      rm -rf prometheus-2.20.0.linux-amd64*
+
+      cp /vagrant/prometheus.service /etc/systemd/system/
+      systemctl daemon-reload
+      systemctl start prometheus
+      systemctl enable prometheus
+
+      SCRIPT
+    config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
+    config.vm.provider :libvirt do |v|
+      v.memory = 356
+    end
+  end
+
+  config.vm.define "grafana" do |config|
+    config.vm.hostname = "grafana"
+    config.vm.box = "generic/ubuntu1804"
+    config.vm.network "private_network", ip: "192.168.18.8"
+    config.vm.network "forwarded_port", guest: 3000, host: 3000
+    config.vm.synced_folder "./grafana", "/vagrant", type: "rsync", rsync__exclude: ".git/"
+    config.vm.provision "shell", keep_color: true, inline: <<-'SCRIPT'
+      #!/bin/bash
+      set -x
+
+      wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+      echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+      apt-get -yq update && apt-get -y install grafana
+
+      cp /vagrant/datasource-prometheus.yml /etc/grafana/provisioning/datasources/.
+      cp /vagrant/dashboard-providers.yml /etc/grafana/provisioning/dashboards/.
+
+      mkdir -p /var/lib/grafana/dashboards
+      cp /vagrant/node-exporter-en_rev4.json /var/lib/grafana/dashboards/.
+
+      systemctl daemon-reload
+      systemctl start grafana-server
+      systemctl enable grafana-server.service
+
+      SCRIPT
+    config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
+    config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
+    config.vm.provider :libvirt do |v|
+      v.memory = 356
+    end
+  end
+
+  (1..3).each do |i|
+    config.vm.define "node#{i}" do |config|
+      config.vm.hostname = "node-#{i}"
+      config.vm.box = "generic/ubuntu1804"
+      config.vm.network "private_network", ip: "192.168.18.#{i+10}"
+      config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
+      config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
+      config.vm.provider :libvirt do |v|
+        v.memory = 312
+        v.cpus = 1
+      end
+    end
+  end
+end
