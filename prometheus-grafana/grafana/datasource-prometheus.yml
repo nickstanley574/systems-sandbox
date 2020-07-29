@@ -3,4 +3,7 @@ apiVersion: 1
 datasources:
   - name: dev-prometheus
     type: prometheus
-    url: http://192.168.18.9:9090
+    url: https://prometheus.vagrant.local
+    basicAuth: true
+    basicAuthPassword: password
+    basicAuthUser: prometheusaccess

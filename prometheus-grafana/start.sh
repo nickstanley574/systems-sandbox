@@ -1,9 +1,8 @@
 #! /bin/bash
+set -xe
+# openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -keyout base_install/_.vagrant.local.key -out base_install/_.vagrant.local.crt -subj "/C=US/ST=Illinois/L=Chicago/O=self-nickstanley574/CN=*.vagrant.local"
 
-openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout node_exporter/node_exporter.key -out node_exporter/node_exporter.crt -subj "/C=US/ST=Illonis/L=Chicago/O=self/CN=*.vagrant.local"
+# openssl x509 -text -noout -in base_install/_.vagrant.local.crt
 
-vagrant up prometheus grafana
-vagrant up /node*/
-
-echo 'grafana admin/admin: http://localhost:3000'
-echo 'prometheus: http://localhost:9090/targets'
+# vagrant up prometheus grafana
+# vagrant up /node*/

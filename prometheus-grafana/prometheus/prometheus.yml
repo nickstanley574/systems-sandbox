@@ -27,7 +27,7 @@ scrape_configs:
       password: 100%GREATpassword-1
 
     tls_config:
-        ca_file: "/etc/node_exporter/ssl/node_exporter.crt"
+        ca_file: "/etc/node_exporter/ssl/_.vagrant.local.crt"
 
     scrape_interval: 12s
 

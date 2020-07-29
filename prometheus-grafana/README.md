@@ -22,3 +22,5 @@
 * https://sysadmins.co.za/setup-prometheus-and-node-exporter-on-linux-for-epic-monitoring/
 * https://inuits.eu/blog/prometheus-tls/
 * https://prometheus.io/docs/guides/basic-auth/
+* https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+* https://developer.mozilla.org/en-US/docs/Mozilla/Security/x509_Certificates

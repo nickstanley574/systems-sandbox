@@ -3,17 +3,10 @@
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 
-# https://serhack.me/articles/monitoring-infrastructure-grafana-influxdb-connectd/
-
-# https://grafana.com/docs/grafana/latest/administration/provisioning/#reusable-dashboard-urls
-
-# https://sysadmins.co.za/setup-prometheus-and-node-exporter-on-linux-for-epic-monitoring/
-
-# https://inuits.eu/blog/prometheus-tls/
 
 Vagrant.configure("2") do |config|
 
-  $script_install_node_exporter = <<-SCRIPT
+  $base_install = <<-SCRIPT
     #!/bin/bash
     set -xe
     apt-get -yq update
@@ -24,12 +17,22 @@ Vagrant.configure("2") do |config|
     echo "192.168.18.12 node2.vagrant.local" >> /etc/hosts
     echo "192.168.18.13 node3.vagrant.local" >> /etc/hosts
 
+    cp /vagrant-base_install/_.vagrant.local.crt /etc/ssl/certs/
+    cp /vagrant-base_install/_.vagrant.local.key /etc/ssl/private/
+
     useradd --no-create-home --shell /bin/false node_exporter
+    groupadd ssl-cert
+    usermod -a -G ssl-cert node_exporter
+    chown -R root:ssl-cert /etc/ssl/private/
+    chmod 650 /etc/ssl/private/
+    chmod 640 /etc/ssl/private/_.vagrant.local.key
 
     mkdir -p /etc/node_exporter/ssl
-    cp /vagrant-node_exporter/node_exporter.crt /etc/node_exporter/ssl/
-    cp /vagrant-node_exporter/node_exporter.key /etc/node_exporter/ssl/
-    cp /vagrant-node_exporter/web.yml /etc/node_exporter/
+
+    ln -s /etc/ssl/certs/_.vagrant.local.crt /etc/node_exporter/ssl
+    ln -s /etc/ssl/private/_.vagrant.local.key /etc/node_exporter/ssl
+
+    cp /vagrant-base_install/web.yml /etc/node_exporter/
     chown -R node_exporter:node_exporter /etc/node_exporter/
 
     wget -q https://github.com/prometheus/node_exporter/releases/download/v1.0.1/node_exporter-1.0.1.linux-amd64.tar.gz
@@ -38,7 +41,7 @@ Vagrant.configure("2") do |config|
     chown node_exporter:node_exporter /usr/local/bin/node_exporter
     rm -rf node_exporter-1.0.1.linux-amd64/*
 
-    cp /vagrant-node_exporter/node_exporter.service /etc/systemd/system/
+    cp /vagrant-base_install/node_exporter.service /etc/systemd/system/
     systemctl daemon-reload
     systemctl start node_exporter
     systemctl enable node_exporter
@@ -50,9 +53,9 @@ Vagrant.configure("2") do |config|
     config.vm.hostname = "prometheus"
     config.vm.box = "generic/ubuntu1804"
     config.vm.network "private_network", ip: "192.168.18.9"
-    config.vm.network "forwarded_port", guest: 9090, host: 9090
+    config.vm.synced_folder "./base_install", "/vagrant-base_install", type: "rsync", rsync__exclude: ".git/"
+    config.vm.provision "shell", keep_color: true, inline: $base_install
     config.vm.synced_folder "./prometheus", "/vagrant", type: "rsync", rsync__exclude: ".git/"
-    config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
     config.vm.provision "shell", keep_color: true, inline: <<-'SCRIPT'
       #!/bin/bash
       set -x
@@ -77,7 +80,6 @@ Vagrant.configure("2") do |config|
       chown -R prometheus:prometheus /etc/prometheus/
       chown -R prometheus:prometheus /etc/prometheus/consoles
       chown -R prometheus:prometheus /etc/prometheus/console_libraries
-
       rm -rf prometheus-2.20.0.linux-amd64*
 
       cp /vagrant/prometheus.service /etc/systemd/system/
@@ -85,8 +87,17 @@ Vagrant.configure("2") do |config|
       systemctl start prometheus
       systemctl enable prometheus
 
+      apt install -yq curl gnupg2 ca-certificates lsb-release
+      echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" | sudo tee /etc/apt/sources.list.d/nginx.list
+      curl -fsSL https://nginx.org/keys/nginx_signing.key | sudo apt-key add -
+      sudo apt-key fingerprint ABF5BD827BD9BF62
+      apt-get -yq update
+      sudo apt install -yq nginx
+      cp /vagrant/nginx.conf /etc/nginx/
+      cp /vagrant/.htpasswd /etc/nginx/
+      systemctl start nginx
+
       SCRIPT
-    config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
     config.vm.provider :libvirt do |v|
       v.memory = 356
     end
@@ -96,7 +107,8 @@ Vagrant.configure("2") do |config|
     config.vm.hostname = "grafana"
     config.vm.box = "generic/ubuntu1804"
     config.vm.network "private_network", ip: "192.168.18.8"
-    config.vm.network "forwarded_port", guest: 3000, host: 3000
+    config.vm.synced_folder "./base_install", "/vagrant-base_install", type: "rsync", rsync__exclude: ".git/"
+    config.vm.provision "shell", keep_color: true, inline: $base_install
     config.vm.synced_folder "./grafana", "/vagrant", type: "rsync", rsync__exclude: ".git/"
     config.vm.provision "shell", keep_color: true, inline: <<-'SCRIPT'
       #!/bin/bash
@@ -116,9 +128,37 @@ Vagrant.configure("2") do |config|
       systemctl start grafana-server
       systemctl enable grafana-server.service
 
+      sleep 10
+
+      curl -s -XPOST -H "Content-Type: application/json" -d '{
+        "name":"user01",
+        "email":"user01@graf.com",
+        "login":"user01",
+        "password":"password"
+      }' http://admin:admin@localhost:3000/api/admin/users
+
+      curl -s -X PUT http://admin:admin@localhost:3000/api/admin/users/2/permissions -H "Content-Type: application/json" -d '{"isGrafanaAdmin": true}'
+
+      curl -s -XPOST -H "Content-Type: application/json" -d '{
+        "name":"user02",
+        "email":"user02@graf.com",
+        "login":"user02",
+        "password":"password"
+      }' http://admin:admin@localhost:3000/api/admin/users
+
+      curl -s -X PUT http://admin:admin@localhost:3000/api/admin/users/3/permissions -H "Content-Type: application/json" -d '{"isGrafanaAdmin": true}'
+
+      systemctl restart grafana-server
+
+      apt install -yq curl gnupg2 ca-certificates lsb-release
+      echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" | sudo tee /etc/apt/sources.list.d/nginx.list
+      curl -fsSL https://nginx.org/keys/nginx_signing.key | sudo apt-key add -
+      sudo apt-key fingerprint ABF5BD827BD9BF62
+      apt-get -yq update
+      sudo apt install -yq nginx
+      cp /vagrant/nginx.conf /etc/nginx/
+
       SCRIPT
-    config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
-    config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
     config.vm.provider :libvirt do |v|
       v.memory = 356
     end
@@ -126,11 +166,11 @@ Vagrant.configure("2") do |config|
 
   (1..3).each do |i|
     config.vm.define "node#{i}" do |config|
-      config.vm.hostname = "node-#{i}"
+      config.vm.hostname = "node#{i}"
       config.vm.box = "generic/ubuntu1804"
       config.vm.network "private_network", ip: "192.168.18.#{i+10}"
-      config.vm.synced_folder "./node_exporter", "/vagrant-node_exporter", type: "rsync", rsync__exclude: ".git/"
-      config.vm.provision "shell", keep_color: true, inline: $script_install_node_exporter
+      config.vm.synced_folder "./base_install", "/vagrant-base_install", type: "rsync", rsync__exclude: ".git/"
+      config.vm.provision "shell", keep_color: true, inline: $base_install
       config.vm.provider :libvirt do |v|
         v.memory = 312
         v.cpus = 1
