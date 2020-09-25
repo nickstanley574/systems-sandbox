@@ -157,7 +157,7 @@ Vagrant.configure("2") do |config|
       apt-get -yq update
       sudo apt install -yq nginx
       cp /vagrant/nginx.conf /etc/nginx/
-
+      systemctl start nginx
       SCRIPT
     config.vm.provider :libvirt do |v|
       v.memory = 356
