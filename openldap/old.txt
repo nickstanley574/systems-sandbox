@@ -1,0 +1,26 @@
+# cat << EOF > /tmp/users.ldif
+# dn: uid=johndoe,ou=people,$SUFFIX
+# objectClass: inetOrgPerson
+# objectClass: posixAccount
+# objectClass: shadowAccount
+# uid: johndoe
+# cn: John
+# sn: Doe
+# loginShell: /bin/bash
+# uidNumber: 10000
+# gidNumber: 10000
+# homeDirectory: /home/johndoe
+# shadowMax: 60
+# shadowMin: 1
+# shadowWarning: 7
+# shadowInactive: 7
+# shadowLastChange: 0
+
+# dn: cn=johndoe,ou=groups,$SUFFIX
+# objectClass: posixGroup
+# cn: johndoe
+# gidNumber: 10000
+# memberUid: johndoe
+# EOF
+# # ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/users.ldif
+# ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /tmp/users.ldifbash

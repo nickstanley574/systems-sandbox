@@ -1,0 +1,27 @@
+groups:
+  - gitlab
+  - jenkins
+  - group1
+  - group3
+  - group5
+
+roles:
+  developer:
+    - gitlab
+  sdet:
+    - jenkins
+
+
+users:
+  10000:
+    ldap:
+      uid: test.user0
+      mail: test.user0@example.com
+    roles:
+      - developer
+  10001:
+    ldap:
+      uid: test.user1
+      mail: test.user1@example.com
+    roles:
+      - developer
