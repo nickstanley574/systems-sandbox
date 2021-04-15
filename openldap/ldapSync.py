@@ -1,7 +1,7 @@
 import yaml, os, sys, subprocess
 
 
-with open('ldap_config.yaml') as file:
+with open('/vagrant/ldap_config.yaml') as file:
     ldap_config_file = yaml.load(file, Loader=yaml.FullLoader)
 
 
