@@ -3,8 +3,8 @@
 USER="admin"
 PASSWORD='password123'
 
-DC1='example'
-DC2='com'
+DC1='brambleberry'
+DC2='local'
 DOMAIN="$DC1.$DC2"
 SUFFIX="dc=$DC1,dc=$DC2"
 
@@ -73,6 +73,7 @@ changetype: modify
 replace: olcAccess
 olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=$USER,$SUFFIX" read by * none
 EOF
+
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
 
 cat > /etc/openldap/base.ldif << EOF
@@ -91,6 +92,7 @@ objectClass: organizationalUnit
 objectClass: top
 ou: group
 EOF
+
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
 
 
@@ -123,6 +125,7 @@ sambaSID: $SAMBASID
 uidNumber: 1000
 gidNumber: 1000
 EOF
+
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
 
@@ -139,7 +142,9 @@ firewall-cmd --reload
 systemctl enable httpd
 systemctl start httpd
 
-echo "http://$(hostname).vagrant.local/phpldapadmin/" | sed 's/ //g'
-echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'
-
+echo -n "Run LDAP sync..."
 python3 /vagrant/ldapSync.py
+
+echo
+echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'
+echo

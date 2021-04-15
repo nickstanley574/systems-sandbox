@@ -1,15 +1,39 @@
 groups:
   - gitlab
+  - gitlab-admin
   - jenkins
-  - group1
-  - group3
-  - group5
+  - jenkins-admin
+  - jira
+  - jira-admin
+  - marketing
+  - prod-sudo
+  - prod-mergers
+  - testing-sudo
+  - dev-sudo
+  - artifactory-readonly
+  - artifactory-readwrite
 
 roles:
   developer:
     - gitlab
+    - jenkins
+    - jira
+    - dev-sudo
+    - artifactory-readonly
   sdet:
     - jenkins
+    - prod-mergers
+    - testing-sudo
+  devops:
+    - gitlab-admin
+    - jenkins-admin
+    - jira-admin
+    - dev-sudo
+    - artifactory-readwrite
+  sysadmin:
+    - jenkins-admin
+    - prod-sudo
+  manager:
 
 
 users:
