@@ -8,7 +8,8 @@ DC2='com'
 DOMAIN="$DC1.$DC2"
 SUFFIX="dc=$DC1,dc=$DC2"
 
-echo -n "Installing packages ..... "
+
+echo -n "Installing packages..."
 yum -y -q update
 yum -y -q install \
     openldap \
@@ -23,14 +24,18 @@ yum -y -q install \
     python3 \
     python3-devel
 
-pip install pyyaml python-ldap
+pip3 install pyyaml python-ldap
 
-echo -n "Config slapd and openldap ..... "
+
+echo -n "Config slapd and openldap..."
 systemctl enable slapd
 systemctl start slapd
-netstat -antup | grep -i 389
 
 slappasswd -s $PASSWORD -n > /etc/openldap/passwd
+
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
 
 cat > /etc/openldap/changes.ldif << EOF
 dn: olcDatabase={2}hdb,cn=config
@@ -70,13 +75,9 @@ olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,c
 EOF
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
 
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
-
 cat > /etc/openldap/base.ldif << EOF
-dn: dc=example,dc=com
-dc: example
+dn: $SUFFIX
+dc: $DC1
 objectClass: top
 objectClass: domain
 
@@ -92,21 +93,29 @@ ou: group
 EOF
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
 
-echo -n "Config samba ldap backend..."
+
+echo -n "Setup samba ldap backend..."
+
 ldapadd -Y EXTERNAL -H ldapi:/// -f /usr/share/doc/samba-4.10.16/LDAP/samba.ldif
+
 /bin/cp /vagrant/config/smbldap.conf /etc/smbldap-tools/smbldap.conf
 /bin/cp /vagrant/config/smbldap_bind.conf /etc/smbldap-tools/smbldap_bind.conf
+
+sed -i "s/USER/$USER/g"          /etc/smbldap-tools/smbldap_bind.conf
+sed -i "s/PASSWORD/$PASSWORD/g"  /etc/smbldap-tools/smbldap_bind.conf
+sed -i "s/SUFFIX/$SUFFIX/g"      /etc/smbldap-tools/smbldap_bind.conf
+sed -i "s/SUFFIX/$SUFFIX/g"      /etc/smbldap-tools/smbldap.conf
 
 SAMBASID=$(net getlocalsid | awk '{print $NF}')
 
 cat > /etc/openldap/samba.ldif << EOF
-dn: sambaDomainName=SAMBA,dc=example,dc=com
+dn: sambaDomainName=SAMBA,$SUFFIX
 objectClass: sambaDomain
 sambaDomainName: SAMBA
 sambaSID: $SAMBASID
 sambaNextRid: 1000
 
-dn: sambaDomainName=sambaDomain,dc=example,dc=com
+dn: sambaDomainName=sambaDomain,$SUFFIX
 objectClass: sambaDomain
 objectClass: sambaUnixIdPool
 sambaDomainName: sambaDomain
@@ -116,7 +125,8 @@ gidNumber: 1000
 EOF
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
-echo -n "Config phpldapadmin ..... "
+
+echo -n "Config phpldapadmin..."
 /bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php
 sed -i "s/DC1/$DC1/g" /etc/phpldapadmin/config.php
 sed -i "s/DC2/$DC2/g" /etc/phpldapadmin/config.php
@@ -131,3 +141,5 @@ systemctl start httpd
 
 echo "http://$(hostname).vagrant.local/phpldapadmin/" | sed 's/ //g'
 echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'
+
+python3 /vagrant/ldapSync.py

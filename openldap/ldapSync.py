@@ -1,7 +1,7 @@
 import yaml, os, sys, subprocess
 
 
-with open(r'ldap.yaml') as file:
+with open('ldap_config.yaml') as file:
     ldap_config_file = yaml.load(file, Loader=yaml.FullLoader)
 
 
