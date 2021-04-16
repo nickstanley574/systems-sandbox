@@ -36,16 +36,29 @@ roles:
   manager:
 
 
+
 users:
   10000:
     ldap:
-      uid: test.user0
+      uid: test.user888888888888888888888888888888
       mail: test.user0@example.com
     roles:
       - developer
   10001:
     ldap:
-      uid: test.user1
+      uid: test.user11111
+      mail: test.user1@example.com
+    roles:
+      - developer
+  10002:
+    ldap:
+      uid: test.user111
+      mail: test.user1@example.com
+    roles:
+      - developer
+  10005:
+    ldap:
+      uid: test.user1112
       mail: test.user1@example.com
     roles:
       - developer

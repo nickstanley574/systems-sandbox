@@ -24,7 +24,7 @@ yum -y -q install \
     python3 \
     python3-devel
 
-pip3 install pyyaml python-ldap
+pip3 -q install pyyaml python-ldap
 
 
 echo -n "Config slapd and openldap..."
@@ -32,10 +32,6 @@ systemctl enable slapd
 systemctl start slapd
 
 slappasswd -s $PASSWORD -n > /etc/openldap/passwd
-
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
 
 cat > /etc/openldap/changes.ldif << EOF
 dn: olcDatabase={2}hdb,cn=config
@@ -74,7 +70,11 @@ replace: olcAccess
 olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=$USER,$SUFFIX" read by * none
 EOF
 
-ldapmodify -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
+ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
+
+ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
 
 cat > /etc/openldap/base.ldif << EOF
 dn: $SUFFIX
@@ -98,7 +98,7 @@ ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
 
 echo -n "Setup samba ldap backend..."
 
-ldapadd -Y EXTERNAL -H ldapi:/// -f /usr/share/doc/samba-4.10.16/LDAP/samba.ldif
+ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /usr/share/doc/samba-4.10.16/LDAP/samba.ldif
 
 /bin/cp /vagrant/config/smbldap.conf /etc/smbldap-tools/smbldap.conf
 /bin/cp /vagrant/config/smbldap_bind.conf /etc/smbldap-tools/smbldap_bind.conf
@@ -125,7 +125,6 @@ sambaSID: $SAMBASID
 uidNumber: 1000
 gidNumber: 1000
 EOF
-
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
 
@@ -142,8 +141,8 @@ firewall-cmd --reload
 systemctl enable httpd
 systemctl start httpd
 
-echo -n "Run LDAP sync..."
-python3 /vagrant/ldapSync.py
+# echo -n "Run LDAP sync..."
+# python3 /vagrant/ldapSync.py
 
 echo
 echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'
