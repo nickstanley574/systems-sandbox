@@ -16,10 +16,6 @@ groups:
 roles:
   developer:
     - gitlab
-    - jenkins
-    - jira
-    - dev-sudo
-    - artifactory-readonly
   sdet:
     - jenkins
     - prod-mergers
@@ -36,29 +32,22 @@ roles:
   manager:
 
 
-
 users:
   10000:
     ldap:
-      uid: test.user888888888888888888888888888888
+      uid: test.user0
       mail: test.user0@example.com
     roles:
       - developer
   10001:
     ldap:
-      uid: test.user11111
+      uid: test.user12
       mail: test.user1@example.com
     roles:
       - developer
   10002:
     ldap:
-      uid: test.user111
-      mail: test.user1@example.com
-    roles:
-      - developer
-  10005:
-    ldap:
-      uid: test.user1112
-      mail: test.user1@example.com
+      uid: test.user2
+      mail: test.user2@example.com
     roles:
       - developer

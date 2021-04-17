@@ -1,71 +1,108 @@
-import yaml, os, sys, subprocess
+import yaml
+import os
+import sys
+import subprocess
 import difflib
-import json, time
+import json
+import time
 import hashlib
 
 from ldapActions import *
 
 with open('ldap_config.yaml') as file:
-    ldap_config_file = yaml.load(file, Loader=yaml.FullLoader)
+    ldap_cfg_file = yaml.load(file, Loader=yaml.FullLoader)
 
 user_dir = f"{os.environ['CACHED_DIR']}/.users"
+groups_dir = f"{os.environ['CACHED_DIR']}/.groups"
 
 if not os.path.exists(user_dir):
     os.makedirs(user_dir)
-usersfiles = os.listdir(user_dir)
+
+if not os.path.exists(groups_dir):
+    os.makedirs(groups_dir)
 
 
-usersfileseip = []
-usersfilesm5 = []
-usersfileuid = []
+####################
+# GROUP MANAGEMENT #
+####################
+
+active_groups = []
+groupsfiles = os.listdir(groups_dir)
+
+roles_groups = [f"role-{role}" for role in ldap_cfg_file['roles'].keys()]
+access_groups = ldap_cfg_file['groups']
+for group in access_groups + roles_groups:
+    active_groups.append(group)
+    grouppath = f"{groups_dir}/{group}"
+    if group not in groupsfiles:
+        create_group(group)
+        f = open(grouppath, "x")
+        f.close()
+
+
+groupsfiles = os.listdir(groups_dir)
+for f in groupsfiles:
+    if f not in active_groups:
+        delete_group(f)
+        os.remove(f"{groups_dir}/{f}")
+
+
+###################
+# USER MANAGEMENT #
+###################
 
 usersfile_dict = {}
+all_users_file_eips = []
+all_userfiles_m5d   = []
+all_users_files = os.listdir(user_dir)
 
-for i in usersfiles:
-    eip, m5 = i.split("-")
-    # uid = ldap_config_file['users'][int(eip)]['ldap']['uid']
-    usersfileseip.append(eip)
-    usersfilesm5.append(m5)
+for userfile in all_users_files:
+    eip, m5, uid = userfile.split("-")
+    all_users_file_eips.append(eip)
+    all_userfiles_m5d.append(m5)
     usersfile_dict[eip] = {
-        'file':i,
-        'm5':m5
+        'file': userfile,
+        'm5': m5,
+        'uid': uid
     }
-    # usersfileuid.append(uid)
 
-new_users = []
-modified_users = []
-active_eips = []
-roles = ldap_config_file['roles']
+for cfg_user_eip in ldap_cfg_file['users']:
+    cfg_user_groups = get_user_groups(cfg_user_eip)
 
+    ldap_cfg_file['users'][cfg_user_eip]['groups'] = cfg_user_groups
 
-for user_eip in ldap_config_file['users']:
-    newuser_uid = ldap_config_file['users'][user_eip]['ldap']['uid']
-    user_m5 = hashlib.md5(json.dumps(ldap_config_file['users'][user_eip]).encode()).hexdigest()
-    userfile = f"{user_eip}-{user_m5}"
-    userpath = f"{user_dir}/{userfile}"
-    active_eips.append(user_eip)
+    cfg_user_uid = ldap_cfg_file['users'][cfg_user_eip]['ldap']['uid']
+    cfg_user_str = json.dumps(ldap_cfg_file['users'][cfg_user_eip])
+    cfg_user_md5 = hashlib.md5(cfg_user_str.encode()).hexdigest()
 
-    if str(user_eip) not in usersfileseip:
-        print(f"Create: {userfile} ({newuser_uid})")
-        current_m5 = userpath.split('-')[1]
-        create_user(user_eip, newuser_uid)
-        f = open(userpath, "x")
+    user_filepath = f"{user_dir}/{cfg_user_eip}-{cfg_user_md5}-{cfg_user_uid}"
+
+    # Create New User
+    if str(cfg_user_eip) not in all_users_file_eips:
+        current_md5 = user_filepath.split('-')[1]
+        create_user(cfg_user_eip, cfg_user_uid)
+        enforce_groups(cfg_user_uid, cfg_user_groups)
+        f = open(user_filepath, "x")
         f.close()
 
-    elif user_m5 not in usersfilesm5:
-        oldfile = usersfile_dict[str(user_eip)]['file']
-        print(f"Modify:")
-        print(f"   old: {oldfile} ({newuser_uid})")
-        print(f"   new: {userfile} ({newuser_uid})")
+    # Modify Current User
+    elif cfg_user_md5 not in all_userfiles_m5d:
+        current_file = usersfile_dict[str(cfg_user_eip)]['file']
+        file_user_uid = usersfile_dict[str(cfg_user_eip)]['uid']
 
-        f = open(userpath, "x")
-        os.remove(f"{user_dir}/{user}")
+        if file_user_uid != cfg_user_uid:
+            os.system(f"smbldap-usermod --rename {cfg_user_uid} {file_user_uid}")
+        else:
+            enforce_groups(cfg_user_uid, cfg_user_groups)
+
+        os.remove(f"{user_dir}/{current_file}")
+        f = open(user_filepath, "x")
         f.close()
 
-for user in usersfiles:
-    eip = user.split("-")[0]
-    if int(eip) not in active_eips:
-        print(f"Delete: {user}")
-        os.remove(f"{user_dir}/{user}")
-
-
+# Delete Users
+for user_files in all_users_files:
+    eip, m5, uid = user_files.split("-")
+    if int(eip) not in ldap_cfg_file['users'].keys():
+        print(f"Delete: {user_files}")
+        delete_user(uid)
+        os.remove(f"{user_dir}/{user_files}")

@@ -34,9 +34,9 @@ def delete_group(groupname):
 def create_user(ein, uid):
     display("Create User",uid)
     exitcode = os.WEXITSTATUS(os.system(f"smbldap-useradd {uid} -Z employeeNumber={ein}"))
-    if exitcode != 0:
-        print(f"Create user {uid} failed.")
-        sys.exit(2)
+    # if exitcode != 0:
+    #     print(f"Create user {uid} failed.")
+    #     sys.exit(2)
 
 
 def delete_user(uid):
