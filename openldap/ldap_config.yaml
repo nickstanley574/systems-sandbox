@@ -14,12 +14,9 @@ roles:
     - jenkins
     - prod-mergers
     - testing-sudo
-  # devops:
-  #   - gitlab-admin
-  #   - jenkins-admin
-  #   - jira-admin
-  #   - dev-sudo
-  #   - artifactory-readwrite
+  devops:
+    - gitlab-admin
+    - artifactory-readwrite
   sysadmin:
     - jenkins-admin
     - prod-sudo
@@ -29,7 +26,7 @@ roles:
 users:
   10000:
     ldap:
-      uid: test.userbug
+      uid: test.userbug2
       mail: test.user0@example.com
     roles:
       - sysadmin
@@ -38,10 +35,10 @@ users:
       uid: test.user1
       mail: test.user0@example.com
     roles:
-      - developer
+      - devops
   10002:
     ldap:
-      uid: test.user2
+      uid: test.user12
       mail: test.user2@example.com
     roles:
       - developer
