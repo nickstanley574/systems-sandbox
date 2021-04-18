@@ -6,10 +6,12 @@ groups:
   - jenkins-admin
   - prod-sudo
   - ddd
+  - jenkins
 
 roles:
   developer:
     - gitlab
+    # - jenkins
   sdet:
     - jenkins
     - prod-mergers

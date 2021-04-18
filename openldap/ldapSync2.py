@@ -22,6 +22,7 @@ class LDAP:
             auto_bind = True
         )
 
+    # Private helpers
 
     def __check_result(self, result, val='unknown', acceptable=[]):
         if result != True:
@@ -31,6 +32,20 @@ class LDAP:
             else:
                 print(f"ERROR - {self.ldap_conn.result}")
                 sys.exit(2)
+
+    def __sambaDomainName_unique(self, attribute):
+        self.ldap_conn.search(
+            search_base     = f'sambaDomainName=sambaDomain,{ldap_suffix}',
+            search_filter   = '(objectClass=*)',
+            search_scope    = 'SUBTREE',
+            attributes      = [attribute]
+        )
+        number = self.ldap_conn.entries[0][attribute].values[0] + 1
+        result = self.ldap_conn.modify(
+            dn = f'sambaDomainName=sambaDomain,{ldap_suffix}',
+            changes = {attribute:[ (MODIFY_REPLACE, number)]})
+        self.__check_result(result)
+        return number
 
 
     def group_search(self, attributes):
@@ -61,7 +76,7 @@ class LDAP:
                 'top', 'posixGroup', 'SambaGroupMapping',
             ],
             attributes = {
-                'gidNumber': self.get_next_avaliable_gidNumber(),
+                'gidNumber': self.__sambaDomainName_unique('gidNumber'),
                 'sambaSID': sambaSID,
                 'sambaGroupType': 2
             }
@@ -75,14 +90,15 @@ class LDAP:
         self.__check_result(result)
 
 
-    def enforce_groups(self, uid, config_groups, cfg_user_md5):
+    def groups_enforce(self, uid, config_groups, cfg_user_md5):
         current_groups      = set(self.user_get_members_of(uid))
         should_be_groups    = set(config_groups)
-        remove = current_groups.difference(should_be_groups)
-        add  = should_be_groups.difference(current_groups)
-        for g in add:       self.groups_add_user(uid, g)
-        for g in remove:    self.groups_remove_user(uid, g)
-
+        remove  = current_groups.difference(should_be_groups)
+        add     = should_be_groups.difference(current_groups)
+        for g in add:
+            self.groups_add_user(uid, g)
+        for g in remove:
+            self.groups_remove_user(uid, g)
         result = self.ldap_conn.modify(
             dn      = f'uid={uid},ou=people,{ldap_suffix}',
             changes = {'carLicense':[ (MODIFY_REPLACE, cfg_user_md5)]})
@@ -118,7 +134,7 @@ class LDAP:
                 'homeDirectory': f"home/{uid}",
                 'cn':"CN",
                 'employeeNumber': eip,
-                'uidNumber': self.get_next_avaliable_uidNumber(),
+                'uidNumber': self.__sambaDomainName_unique('uidnumber'),
                 'gidNumber': 512,
                 'mail': mail,
                 'carLicense': m5d
@@ -164,45 +180,16 @@ class LDAP:
 
 
     def get_users_employeenumber(self):
-        entries = self.user_search(['employeenumber'])
-        return [ user.employeenumber.value for user in self.ldap_conn.entries ]
+        return [ user.employeenumber.value for user in self.user_search(['employeenumber']) ]
 
     def get_users_m5d(self):
-        entries = self.user_search(['carLicense'])
-        return [ user.carLicense.value for user in entries ]
+        return [ user.carLicense.value for user in self.user_search(['carLicense']) ]
 
     def get_all_groups(self):
-        entries = self.group_search(['cn'])
-        return [ e.cn.value for e in entries ]
-
-
-    def __sambaDomainName_unique(self, attribute):
-        self.ldap_conn.search(
-            search_base     = f'sambaDomainName=sambaDomain,{ldap_suffix}',
-            search_filter   = '(objectClass=*)',
-            search_scope    = 'SUBTREE',
-            attributes      = [attribute]
-        )
-        number = self.ldap_conn.entries[0][attribute].values[0] + 1
-
-        result = self.ldap_conn.modify(
-            dn = f'sambaDomainName=sambaDomain,{ldap_suffix}',
-            changes = {attribute:[ (MODIFY_REPLACE, number)]})
-
-        self.__check_result(result)
-
-        return number
-
-
-    def get_next_avaliable_gidNumber(self):
-        return __sambaDomainName_unique('gidNumber')
-
-    def get_next_avaliable_uidNumber(self):
-        return __sambaDomainName_unique('uidnumber')
+        return [ e.cn.value for e in self.group_search(['cn']) ]
 
     def all_users_main_values(self):
-        entries = self.user_search(['employeeNumber', 'carLicense', 'uid'])
-        return [ [user.employeeNumber.value, user.carLicense.value, user.uid.value] for user in self.ldap_conn.entries ]
+        return [ [user.employeeNumber.value, user.carLicense.value, user.uid.value] for user in self.user_search(['employeeNumber', 'carLicense', 'uid']) ]
 
 
 ldap = LDAP()
@@ -264,7 +251,7 @@ for cfg_user_eip in ldap_cfg_file['users']:
     if str(cfg_user_eip) not in ldap.get_users_employeenumber():
         mail = ldap_cfg_file['users'][cfg_user_eip]['ldap']['mail']
         ldap.user_create(cfg_user_uid, cfg_user_eip, mail, cfg_user_md5)
-        ldap.enforce_groups(cfg_user_uid, cfg_user_groups, cfg_user_md5)
+        ldap.groups_enforce(cfg_user_uid, cfg_user_groups, cfg_user_md5)
 
     # Modify Current User
     elif cfg_user_md5 not in ldap.get_users_m5d():
@@ -272,7 +259,7 @@ for cfg_user_eip in ldap_cfg_file['users']:
         if file_user_uid != cfg_user_uid:
             ldap.user_rename(file_user_uid, cfg_user_uid, cfg_user_md5)
         else:
-            ldap.enforce_groups(cfg_user_uid, cfg_user_groups, cfg_user_md5)
+            ldap.groups_enforce(cfg_user_uid, cfg_user_groups, cfg_user_md5)
 
 # Delete Users
 for user_files in ldap.all_users_main_values():
