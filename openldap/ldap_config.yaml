@@ -3,6 +3,9 @@ groups:
   - gitlab-admin
   - artifactory-readwrite
   - ooo
+  - jenkins-admin
+  - prod-sudo
+  - ddd
 
 roles:
   developer:
@@ -17,8 +20,8 @@ roles:
   #   - jira-admin
   #   - dev-sudo
   #   - artifactory-readwrite
-  # sysadmin:
-  #   - jenkins-admin
+  sysadmin:
+    - jenkins-admin
     - prod-sudo
   # manager:
 
@@ -29,7 +32,7 @@ users:
       uid: test.userbug
       mail: test.user0@example.com
     roles:
-      - developer
+      - sysadmin
   10001:
     ldap:
       uid: test.user1
@@ -42,21 +45,3 @@ users:
       mail: test.user2@example.com
     roles:
       - developer
-  10003:
-    ldap:
-      uid: test.user3
-      mail: test.user2@example.com
-    roles:
-      - developer
-  # 10001:
-  #   ldap:
-  #     uid: test.user2
-  #     mail: test.user20@example.com
-  #   roles:
-  #     - developer
-  # 10002:
-  #   ldap:
-  #     uid: test.user3
-  #     mail: test.user30@example.com
-  #   roles:
-  #     - developer

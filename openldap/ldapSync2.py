@@ -22,7 +22,6 @@ class LDAP:
             auto_bind = True
         )
 
-
     def group_create(self, group):
         print(f"GROUP CREATE - {group}")
         result = self.ldap_conn.add(
@@ -41,7 +40,6 @@ class LDAP:
             print(LDAP.ldap_conn.result)
             sys.exit(2)
 
-
     def group_delete(self, group):
         print(f"GROUP DELETE - {group}")
         result = self.ldap_conn.delete(dn=f'cn={group},ou=group,{ldap_suffix}')
@@ -49,7 +47,6 @@ class LDAP:
             print("ERROR")
             print(self.ldap_conn.result)
             sys.exit(2)
-
 
     def user_create(self, uid, eip, mail):
         print(f"USER CREATE - {uid}")
@@ -78,7 +75,6 @@ class LDAP:
                 print(self.ldap_conn.result)
                 sys.exit(2)
 
-
     def user_rename(self, curr_uid, new_uid) :
         result = self.ldap_conn.modify_dn(
             dn=f'uid={curr_uid},ou=people,{ldap_suffix}',
@@ -87,7 +83,6 @@ class LDAP:
             print("ERROR")
             print(self.ldap_conn.result)
             sys.exit(2)
-
 
     def user_delete(self, uid):
         print(f"USER DELETE - {uid}")
@@ -100,16 +95,13 @@ class LDAP:
                 print(self.ldap_conn.result)
                 sys.exit(2)
 
-
     def enforce_groups(self, uid, config_groups):
-        print(f"Enforce Groups {uid} {config_groups}")
         current_groups = set(self.user_get_members_of(uid))
         should_be_groups = set(config_groups)
         remove = current_groups.difference(should_be_groups)
         add  = should_be_groups.difference(current_groups)
         for g in add:       self.groups_add_user(uid, g)
         for g in remove:    self.groups_remove_user(uid, g)
-
 
     def groups_add_user(self, uid, group):
         print (f"ADD {uid} to {group}")
@@ -123,7 +115,6 @@ class LDAP:
             print("ERROR")
             print(self.ldap_conn.result)
             sys.exit(2)
-
 
     def groups_remove_user(self, uid, group):
         print (f"REMOVE {uid} from {group}")
@@ -139,7 +130,6 @@ class LDAP:
             else:
                 print(self.ldap_conn.result)
                 sys.exit(2)
-
 
     def user_get_members_of(self, uid):
         self.ldap_conn.search(
@@ -161,9 +151,18 @@ class LDAP:
             for entry in self.ldap_conn.entries:
                 print(entry.memberUid.values)
 
+    def get_all_groups(self):
+            self.ldap_conn.search(
+                search_base     = f'ou=group,{ldap_suffix}',
+                search_filter   = '(objectClass=posixGroup)',
+                search_scope    = 'SUBTREE',
+                attributes      = ['cn']
+            )
+            return [ g.cn.value for g in self.ldap_conn.entries ]
+
     def get_next_avaliable_gidNumber(self):
         self.ldap_conn.search(
-            search_base     = f'sambaDomainName=sambaDomain,dc=brambleberry,dc=local',
+            search_base     = f'sambaDomainName=sambaDomain,{ldap_suffix}',
             search_filter   = '(objectClass=*)',
             search_scope    = 'SUBTREE',
             attributes      = ['gidNumber']
@@ -171,7 +170,7 @@ class LDAP:
         gid_number = self.ldap_conn.entries[0].gidNumber.values[0] + 1
 
         result = self.ldap_conn.modify(
-            dn = f'sambaDomainName=sambaDomain,dc=brambleberry,dc=local',
+            dn = f'sambaDomainName=sambaDomain,{ldap_suffix}',
             changes = {
                 'gidNumber':[ (MODIFY_REPLACE, gid_number)]
             }
@@ -185,31 +184,39 @@ class LDAP:
 
     def get_next_avaliable_uidNumber(self):
         self.ldap_conn.search(
-            search_base     = f'ou=people,{ldap_suffix}',
-            search_filter   = '(objectClass=inetOrgPerson)',
+            search_base     = f'sambaDomainName=sambaDomain,{ldap_suffix}',
+            search_filter   = '(objectClass=*)',
             search_scope    = 'SUBTREE',
-            attributes      = ['uidNumber']
+            attributes      = ['uidnumber']
         )
-        if len(self.ldap_conn.entries) == 0:
-            return 1000
-        else:
-            return sorted([g.uidNumber.value for g in self.ldap_conn.entries])[-1] + 1
+        uid_number = self.ldap_conn.entries[0].uidnumber.values[0] + 1
+
+        result = self.ldap_conn.modify(
+            dn = f'sambaDomainName=sambaDomain,{ldap_suffix}',
+            changes = {
+                'uidnumber':[ (MODIFY_REPLACE, uid_number)]
+            }
+        )
+        if result != True:
+            print("ERROR")
+            print(self.ldap_conn.result)
+            sys.exit(2)
+
+        return uid_number
 
 ldap = LDAP()
-print(ldap.get_next_avaliable_gidNumber())
 
-sys.exit(2)
+ldap.get_all_groups()
+
+# sys.exit(2)
+
 with open('ldap_config.yaml') as file:
     ldap_cfg_file = yaml.load(file, Loader=yaml.FullLoader)
 
 user_dir = f"{os.environ['CACHED_DIR']}/.users"
-groups_dir = f"{os.environ['CACHED_DIR']}/.groups"
 
 if not os.path.exists(user_dir):
     os.makedirs(user_dir)
-
-if not os.path.exists(groups_dir):
-    os.makedirs(groups_dir)
 
 def get_user_groups(eip):
     user_group_membership = []
@@ -219,31 +226,23 @@ def get_user_groups(eip):
     return sorted(user_group_membership)
 
 
-
-
-
 ####################
 # GROUP MANAGEMENT #
 ####################
 
-active_groups = []
-groupsfiles = os.listdir(groups_dir)
 
-roles_groups = [f"role-{role}" for role in ldap_cfg_file['roles'].keys()]
-access_groups = ldap_cfg_file['groups']
-for group in access_groups + roles_groups:
-    active_groups.append(group)
-    grouppath = f"{groups_dir}/{group}"
-    if group not in groupsfiles:
+active_groups = ldap.get_all_groups()
+config_groups = ldap_cfg_file['groups'] +  [ f"role-{role}" for role in ldap_cfg_file['roles'].keys() ]
+
+# Create Groups
+for group in config_groups:
+    if group not in active_groups:
         ldap.group_create(group)
-        f = open(grouppath, "x"); f.close()
 
-
-groupsfiles = os.listdir(groups_dir)
-for f in groupsfiles:
-    if f not in active_groups:
-        ldap.group_delete(f)
-        os.remove(f"{groups_dir}/{f}")
+# Delete Groups
+for group in active_groups:
+    if group not in config_groups:
+        ldap.group_delete(group)
 
 
 ###################
