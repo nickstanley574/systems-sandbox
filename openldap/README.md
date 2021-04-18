@@ -4,6 +4,14 @@
 
 The goal is to built a system where if it goes down you DON'T NEED TO RESTORE FROM A BACKUP. This might sound odd, but backups may contain custom hacks, one of mistake etc. Instead I like building systems that the first think you attempt is to rebuild from scatch so 1. you know your system is repoducable 2. you remove custom hacks.
 
+## phpldapadmin
+
+## openldap
+
+## smbldap-tools
+
+## Python ldap3
+
 ## Resources Read
 
 * [AGDLP - Wikipedia](https://en.wikipedia.org/wiki/AGDLP)

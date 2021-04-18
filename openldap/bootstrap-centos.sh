@@ -24,7 +24,7 @@ yum -y -q install \
     python3 \
     python3-devel
 
-pip3 -q install pyyaml python-ldap
+pip3 -q install pyyaml ldap3
 
 
 echo -n "Config slapd and openldap..."
