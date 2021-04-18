@@ -1,7 +1,8 @@
 import os, sys
 import json, yaml
 import hashlib
-from ldap3 import Server, Connection, MODIFY_ADD, MODIFY_DELETE 
+from ldap3 import Server, Connection
+from ldap3 import MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3 import SUBTREE, BASE
 
 ldap_suffix     = 'dc=brambleberry,dc=local'
@@ -162,15 +163,25 @@ class LDAP:
 
     def get_next_avaliable_gidNumber(self):
         self.ldap_conn.search(
-            search_base     = f'ou=group,{ldap_suffix}',
-            search_filter   = '(objectClass=posixGroup)',
+            search_base     = f'sambaDomainName=sambaDomain,dc=brambleberry,dc=local',
+            search_filter   = '(objectClass=*)',
             search_scope    = 'SUBTREE',
             attributes      = ['gidNumber']
         )
-        if len(self.ldap_conn.entries) == 0:
-            return 500
-        else:
-            return sorted([g.gidNumber.value for g in self.ldap_conn.entries])[-1] + 1
+        gid_number = self.ldap_conn.entries[0].gidNumber.values[0] + 1
+
+        result = self.ldap_conn.modify(
+            dn = f'sambaDomainName=sambaDomain,dc=brambleberry,dc=local',
+            changes = {
+                'gidNumber':[ (MODIFY_REPLACE, gid_number)]
+            }
+        )
+        if result != True:
+            print("ERROR")
+            print(self.ldap_conn.result)
+            sys.exit(2)
+
+        return gid_number
 
     def get_next_avaliable_uidNumber(self):
         self.ldap_conn.search(
@@ -185,8 +196,9 @@ class LDAP:
             return sorted([g.uidNumber.value for g in self.ldap_conn.entries])[-1] + 1
 
 ldap = LDAP()
+print(ldap.get_next_avaliable_gidNumber())
 
-
+sys.exit(2)
 with open('ldap_config.yaml') as file:
     ldap_cfg_file = yaml.load(file, Loader=yaml.FullLoader)
 
