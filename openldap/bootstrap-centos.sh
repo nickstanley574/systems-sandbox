@@ -95,8 +95,49 @@ EOF
 
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
 
+echo "Load memberOf module..."
 
-echo -n "Setup samba ldap backend..."
+cat > /etc/openldap/memberof_config.ldif << EOF
+dn: cn=module,cn=config
+cn: module
+objectClass: olcModuleList
+olcModuleLoad: memberof.la
+olcModulePath: /usr/lib64/openldap
+
+dn: olcOverlay={0}memberof,olcDatabase={2}hdb,cn=config
+objectClass: olcConfig
+objectClass: olcMemberOf
+objectClass: olcOverlayConfig
+objectClass: top
+olcOverlay: memberof
+olcMemberOfDangling: ignore
+olcMemberOfRefInt: TRUE
+olcMemberOfGroupOC: groupOfNames
+olcMemberOfMemberAD: member
+olcMemberOfMemberOfAD: memberOf
+EOF
+#ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/memberof_config.ldif
+
+cat > /etc/openldap/refint1.ldif << EOF
+dn: cn=module{1},cn=config
+add: olcmoduleload
+olcmoduleload: refint
+EOF
+#ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/refint1.ldif
+
+cat > /etc/openldap/refint2.ldif << EOF
+dn: olcOverlay={1}refint,olcDatabase={1}hdb,cn=config
+objectClass: olcConfig
+objectClass: olcOverlayConfig
+objectClass: olcRefintConfig
+objectClass: top
+olcOverlay: {1}refint
+olcRefintAttribute: memberof member manager owner
+EOF
+#ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/refint2.ldif
+
+
+echo "Setup Samba LDAP backend..."
 
 ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /usr/share/doc/samba-4.10.16/LDAP/samba.ldif
 
@@ -128,7 +169,7 @@ EOF
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
 
-echo -n "Config phpldapadmin..."
+echo "Config phpldapadmin..."
 /bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php
 sed -i "s/DC1/$DC1/g" /etc/phpldapadmin/config.php
 sed -i "s/DC2/$DC2/g" /etc/phpldapadmin/config.php
@@ -140,9 +181,6 @@ firewall-cmd --reload
 
 systemctl enable httpd
 systemctl start httpd
-
-# echo -n "Run LDAP sync..."
-# python3 /vagrant/ldapSync.py
 
 echo
 echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'

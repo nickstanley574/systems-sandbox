@@ -39,3 +39,6 @@ The goal is to built a system where if it goes down you DON'T NEED TO RESTORE FR
 * [openSUSE Software](https://software.opensuse.org/package/smbldap-tools)
 * [openldap - LDAP best way to assign Roles to users - Stack Overflow](https://stackoverflow.com/questions/37915255/ldap-best-way-to-assign-roles-to-users)
 * [phpldapadmin_functions/functions.php at master · probsJustin/phpldapadmin_functions · GitHub](https://github.com/probsJustin/phpldapadmin_functions/blob/master/functions.php)
+
+
+The explanation is very simple, when you create an object in a LDAP directory, this object MUST be with a SINGLE structural class. 
