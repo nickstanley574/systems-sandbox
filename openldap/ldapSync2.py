@@ -37,6 +37,8 @@ class LDAP:
 
         self.group_dict = {}
 
+        self.invalid_users = []
+
         self.users_dict_uid = {}
         self.users_dict_eid = {}
         self.user_eips = []
@@ -49,21 +51,19 @@ class LDAP:
 
 
     def __user_populate(self):
-        for userEntry in self.__user_search(['employeeNumber', 'carLicense', 'uid', 'telexNumber']):
+        for userEntry in self.__user_search(['*']):
             user_eid    = userEntry.employeeNumber.value
             user_md5    = userEntry.carLicense.value
             user_uid    = userEntry.uid.value
-            user_groups = userEntry.telexNumber.value.split(',')
 
             self.users_dict_uid[user_uid] = {
                 'm5':       user_md5,
-                'groups':   user_groups,
                 'eid':      user_eid,
-                'curr_groups': []
+                'curr_groups'   : [],
+                'dn'            : userEntry.entry_dn
             }
             self.users_dict_eid[user_eid] = {
                 'm5':       user_md5,
-                'groups':   user_groups,
                 'uid':      user_uid,
                 'curr_groups': []
             }
@@ -78,11 +78,15 @@ class LDAP:
             elif type(e.memberUid.value) == list:
                 members = e.memberUid.value
             else:
-                print("ERRRO -----------")
+                print("ERROR -----------")
                 sys.exit(2)
 
             for user_uid in members:
-                self.users_dict_uid[user_uid]['curr_groups'].append(e.cn.value)
+                if user_uid not in self.users_dict_uid.keys():
+                    print(f"Removing unknown user {user_uid} in group {e.cn.value}")
+                    self.groups_remove_user(user_uid,e.cn.value)
+                else:
+                    self.users_dict_uid[user_uid]['curr_groups'].append(e.cn.value)
 
     def __check_result(self, result, val='unknown', acceptable=[]):
         self.num_hits += 1
@@ -131,7 +135,6 @@ class LDAP:
             search_scope    = 'SUBTREE',
             attributes      = attributes
         )
-        self.__check_result(result)
         return self.ldap_conn.entries
     # Groups
 
@@ -179,8 +182,7 @@ class LDAP:
             result = self.ldap_conn.modify(
                 dn      = f'uid={uid},ou=people,{ldap_suffix}',
                 changes = {
-                    'carLicense' :[ (MODIFY_REPLACE, cfg_user_md5)],
-                    'telexNumber':[ (MODIFY_REPLACE, ",".join(should_be_groups))]
+                    'carLicense' :[ (MODIFY_REPLACE, cfg_user_md5)]
                 }
             )
             self.__check_result(result)
@@ -223,7 +225,6 @@ class LDAP:
                 'gidNumber': 512,
                 'mail': mail,
                 'carLicense': m5d,
-                'telexNumber': ",".join(init_groups)  # testing 
             }
         )
         self.__check_result(result, uid, ['entryAlreadyExists','attributeOrValueExists'])
@@ -253,12 +254,12 @@ class LDAP:
         self.__check_result(result)
 
 
-    def user_delete(self, uid):
-        print(f"USER DELETE - {uid}")
-        for group in self.user_get_members_of_cached(uid):
-            self.groups_remove_user(uid, group)
+    def user_delete(self, uid, dn):
+        print(f"USER DELETE - {dn}")
+        # for group in self.user_get_members_of_cached(uid):
+        #     self.groups_remove_user(uid, group)
         self.num_change_hits += 1
-        result = self.ldap_conn.delete(dn=f'uid={uid},ou=people,{ldap_suffix}')
+        result = self.ldap_conn.delete(dn)
         self.__check_result(result, uid, ['noSuchAttribute'])
 
 
@@ -314,6 +315,7 @@ startTime = time.time()
 print("Preloading Group and User Info...")
 ldap = LDAP()
 active_groups = ldap.get_all_groups()
+
 config_groups = ldap_cfg_file['groups'] + [ f"role-{role}" for role in ldap_cfg_file['roles'].keys() ]
 
 print("Starting Group Create Loop ...")
@@ -337,6 +339,8 @@ new = 0
 mod = 0
 enf = 0
 
+config_users = []
+
 for cfg_user_eip in ldap_cfg_file['users']:
 
     cfg_user_groups = get_user_groups(cfg_user_eip)
@@ -347,6 +351,8 @@ for cfg_user_eip in ldap_cfg_file['users']:
     cfg_user_str = json.dumps(ldap_cfg_file['users'][cfg_user_eip])
     cfg_user_md5 = hashlib.md5(cfg_user_str.encode()).hexdigest()
 
+    config_users.append(cfg_user_uid)
+
     # Create New User
     if str(cfg_user_eip) not in ldap.get_users_employeenumber():
         mail = ldap_cfg_file['users'][cfg_user_eip]['ldap']['mail']
@@ -354,9 +360,9 @@ for cfg_user_eip in ldap_cfg_file['users']:
 
     # Modify Current User
     elif cfg_user_md5 not in ldap.get_users_m5d():
-        file_user_uid = ldap.users_dict_eid[str(cfg_user_eip)]['uid']
-        if file_user_uid != cfg_user_uid:
-            ldap.user_rename(file_user_uid, cfg_user_uid, cfg_user_md5)
+        curr_user_uid = ldap.users_dict_eid[str(cfg_user_eip)]['uid']
+        if curr_user_uid != cfg_user_uid:
+            ldap.user_rename(curr_user_uid, cfg_user_uid, cfg_user_md5)
         else:
             ldap.groups_enforce(cfg_user_uid, cfg_user_groups, cfg_user_md5)
 
@@ -366,9 +372,9 @@ for cfg_user_eip in ldap_cfg_file['users']:
 
 
 print("Starting User Delete Loop ...")
-for eip in ldap.user_eips:
-    if int(eip) not in ldap_cfg_file['users'].keys():
-        ldap.user_delete(ldap.users_dict_eid[eip]['uid'])
+for uid in ldap.users_dict_uid.keys():
+    if uid not in config_users:
+        ldap.user_delete(uid, ldap.users_dict_uid[uid]['dn'])
 
 
 executionTime = (time.time() - startTime)

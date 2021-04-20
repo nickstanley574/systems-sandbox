@@ -15,7 +15,7 @@ roles:
     - gitlab
     - prod-mergers
     - jenkins
-    - ddd
+    - ooo
   sdet:
     - prod-mergers
     - testing-sudo
