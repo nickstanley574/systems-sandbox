@@ -1,4 +1,0 @@
-dn: cn=uidNext,dc=brambleberry,dc=local
-changetype: modify
-increment:uidNumber
-uidNumber: 1

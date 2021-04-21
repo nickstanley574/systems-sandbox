@@ -2,20 +2,14 @@ groups:
   - gitlab
   - gitlab-admin
   - artifactory-readwrite
-  - ooo
-  - jenkins-admin
-  - prod-sudo
-  - ddd
-  - jenkins
   - testing-sudo
   - prod-mergers
+  - ddd
+
 
 roles:
   developer:
     - gitlab
-    - prod-mergers
-    - jenkins
-    - ooo
   sdet:
     - prod-mergers
     - testing-sudo
@@ -32,10 +26,10 @@ roles:
 users:
   1000:
     ldap:
-      uid: test.user0
+      uid: test.user99
       mail: test.user0@example.com
     roles:
-      - manager
+      - developer
   1001:
     ldap:
       uid: test.user1
