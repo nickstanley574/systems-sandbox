@@ -4,7 +4,6 @@ groups:
   - artifactory-readwrite
   - testing-sudo
   - prod-mergers
-  - ddd
 
 
 roles:
@@ -29,16 +28,16 @@ users:
       uid: test.user99
       mail: test.user0@example.com
     roles:
-      - developer
+      - sdet
   1001:
     ldap:
       uid: test.user1
       mail: test.user1@example.com
     roles:
       - developer
-  1002:
-    ldap:
-      uid: test.user2
-      mail: test.user2@example.com
-    roles:
-      - sdet
+  # 1002:
+  #   ldap:
+  #     uid: test.user2
+  #     mail: test.user2@example.com
+  #   roles:
+  #     - sdet
