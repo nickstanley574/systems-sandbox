@@ -5,9 +5,19 @@ Vagrant.configure("2") do |config|
   config.vm.hostname = "ldap.vagrant.local"
   config.vm.box = "generic/centos7"
   config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".vagrant/", rsync__auto: true
-  config.vm.provision "shell", path: "./bootstrap-centos.sh"
+  config.vm.provision "shell", path: "./bootstrap-ldap.sh"
   config.vm.provider :libvirt do |v|
-    v.memory = 1562
-    v.cpus = 3
+    v.memory = 512
+    v.cpus = 1
   end
 end
+
+# Vagrant.configure("2") do |config|
+#   config.vm.define "ldapreset"
+#   config.vm.hostname = "ldapreset.vagrant.local"
+#   config.vm.box = "generic/centos8"
+#   config.vm.provider :libvirt do |v|
+#     v.memory = 256
+#     v.cpus = 1
+#   end
+# end

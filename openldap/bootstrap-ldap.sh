@@ -1,13 +1,12 @@
 #!/bin/bash
-
-USER="admin"
-PASSWORD='password123'
-
+set -e
 DC1='brambleberry'
 DC2='local'
 DOMAIN="$DC1.$DC2"
 SUFFIX="dc=$DC1,dc=$DC2"
 
+USER="admin"
+PASSWORD="password123"
 
 echo -n "Installing packages..."
 yum -y -q update
@@ -95,48 +94,6 @@ EOF
 
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
 
-echo "Load memberOf module..."
-
-cat > /etc/openldap/memberof_config.ldif << EOF
-dn: cn=module,cn=config
-cn: module
-objectClass: olcModuleList
-olcModuleLoad: memberof.la
-olcModulePath: /usr/lib64/openldap
-
-dn: olcOverlay={0}memberof,olcDatabase={2}hdb,cn=config
-objectClass: olcConfig
-objectClass: olcMemberOf
-objectClass: olcOverlayConfig
-objectClass: top
-olcOverlay: memberof
-olcMemberOfDangling: ignore
-olcMemberOfRefInt: TRUE
-olcMemberOfGroupOC: groupOfNames
-olcMemberOfMemberAD: member
-olcMemberOfMemberOfAD: memberOf
-EOF
-#ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/memberof_config.ldif
-
-cat > /etc/openldap/refint1.ldif << EOF
-dn: cn=module{1},cn=config
-add: olcmoduleload
-olcmoduleload: refint
-EOF
-#ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/refint1.ldif
-
-cat > /etc/openldap/refint2.ldif << EOF
-dn: olcOverlay={1}refint,olcDatabase={1}hdb,cn=config
-objectClass: olcConfig
-objectClass: olcOverlayConfig
-objectClass: olcRefintConfig
-objectClass: top
-olcOverlay: {1}refint
-olcRefintAttribute: memberof member manager owner
-EOF
-#ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/refint2.ldif
-
-
 echo "Setup Samba LDAP backend..."
 
 ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /usr/share/doc/samba-4.10.16/LDAP/samba.ldif
@@ -168,6 +125,21 @@ gidNumber: 1000
 EOF
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
+echo "Config ldapsync ..."
+
+DIR="/etc/ldapsync"
+mkdir -p $DIR
+cat > $DIR/ldapsync.config << EOF
+[MAIN]
+user        = $USER
+password    = $PASSWORD
+suffix      = $SUFFIX
+sambaSID    = $SAMBASID
+ldapserver  = $(hostname)
+ldapyaml    = /vagrant/ldap_config.yaml
+hardenforce = True
+EOF
+chmod 600 $DIR/ldapsync.config
 
 echo "Config phpldapadmin..."
 /bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php

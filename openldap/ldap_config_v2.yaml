@@ -1,0 +1,77 @@
+groups:
+
+  gitlab:
+    description:
+      "Generic access to Gitlab."
+
+  gitlab-admin:
+    description:
+      "Full blown admin Access"
+
+  artifactory-readwrite:
+    description:
+      "Read what is in artifactory."
+
+  testing-sudo:
+    description:
+      "Allow sudo access to machine in the testing env."
+
+  prod-mergers:
+    description:
+      "Allows merges into master."
+
+
+roles:
+
+  developer:
+    - gitlab
+    - artifactory-readwrite
+
+  developer-lead:
+    - prod-mergers
+
+  sdet:
+    - testing-sudo
+    - artifactory-readwrite
+
+  devops:
+    - gitlab-admin
+    - artifactory-readwrite
+
+  sysadmin:
+    - jenkins-admin
+    - prod-sudo
+
+  manager:
+    - human-resources
+
+
+users:
+
+  1000:
+    uid: ggalilei
+    fname: Galileo
+    lname: Galilei
+    roles: developer
+
+  1001:
+    uid: bettywhite
+    fname: Betty
+    lanme: White
+    roles: developer
+
+  1002:
+    uid: janison2
+    fname: Jennifer
+    lname: Aniston
+    roles:
+      - sdet
+      - manager
+
+  1003:
+    fname: Nelson
+    lname: Mandela
+    roles:
+      - developer
+      - developer-lead
+

@@ -11,10 +11,18 @@ from ldap3 import Server, Connection
 from ldap3 import MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPCursorAttributeError
 
-LDAP_SUFFIX     = 'dc=brambleberry,dc=local'
-SAMBA_SID       = 'S-1-5-21-3794605451-3872955435-2260215407-1016'
-ADMIN_USER      = 'admin'
-ADMIN_CRED      = 'password123'
+import configparser
+
+config = configparser.ConfigParser()
+config.read('/etc/ldapsync/ldapsync.config')
+
+ADMIN_USER   = config['MAIN']['user']
+ADMIN_CRED   = config['MAIN']['password']
+LDAP_SUFFIX  = config['MAIN']['suffix']
+SAMBA_SID    = config['MAIN']['sambaSID']
+LDAP_YAML    = config['MAIN']['ldapyaml']
+LDAP_SERVER  = config['MAIN']['ldapserver']
+HARD_ENFORCE = config.getboolean('MAIN','hardenforce')
 
 
 def log(logtype, message):
@@ -27,7 +35,7 @@ class LDAP:
     def __init__(self):
 
         self.ldap_conn = Connection(
-            server    = Server('127.0.0.1'),
+            server    = Server(LDAP_SERVER),
             user      = f'cn={ADMIN_USER},{LDAP_SUFFIX}',
             password  = ADMIN_CRED,
             auto_bind = True
@@ -64,12 +72,14 @@ class LDAP:
                     'm5':       user_md5,
                     'eid':      user_eid,
                     'curr_groups'   : [],
-                    'dn'            : dn }
+                    'dn'            : dn
+                }
                 self.users_dict_eid[user_eid] = {
                     'm5':       user_md5,
                     'uid':      user_uid,
                     'curr_groups': [],
-                    'dn'         : dn }
+                    'dn'         : dn
+                }
 
                 self.user_eips.append(user_eid)
                 self.user_md5s.append(user_md5)
@@ -107,11 +117,12 @@ class LDAP:
 
     def __check_result(self, result, val='unknown', acceptable=None):
         self.num_hits += 1
-
-        if self.ldap_conn.result['type'] == 'modifyResponse':
+        if self.ldap_conn.result['type'] in ['modifyResponse','modDNResponse']:
             self.num_modify_hits += 1
         elif self.ldap_conn.result['type'] == 'searchResDone' :
             self.num_search_hits += 1
+
+        if acceptable == None: acceptable = []
 
         if result is not True and self.ldap_conn.result['result'] != 0:
             error = self.ldap_conn.result['description']
@@ -204,7 +215,7 @@ class LDAP:
 
 
     def groups_add_user(self, uid, group):
-        log("ADD", f"    * add {uid} to {group}")
+        log("ADD", f"    *    add {uid:>15}   to {group}")
         result = self.ldap_conn.modify(
             dn      = f'cn={group},ou=group,{LDAP_SUFFIX}',
             changes = {'memberUid':[(MODIFY_ADD, uid)]})
@@ -212,7 +223,7 @@ class LDAP:
 
 
     def groups_remove_user(self, uid, group):
-        log("REMOVE", f"    * remove {uid} from {group}")
+        log("REMOVE", f"    * remove {uid:>15} from {group}")
         result = self.ldap_conn.modify(
             dn      = f'cn={group},ou=group,{LDAP_SUFFIX}',
             changes = { 'memberUid':[ (MODIFY_DELETE, uid)] })
@@ -220,7 +231,7 @@ class LDAP:
 
     # Users
 
-    def user_create(self, uid, eid, mail, m5d, init_groups):
+    def user_create(self, uid, eid, fname, lname, mail, m5d, init_groups):
         dn = f'uid={uid},ou=people,{LDAP_SUFFIX}'
         log("CREATE", f"create user {dn} and to {', '.join(init_groups)}")
         result = self.ldap_conn.add(
@@ -228,9 +239,9 @@ class LDAP:
             object_class = ['top',          'person',        'organizationalPerson',
                             'posixAccount', 'shadowAccount', 'inetOrgPerson'],
             attributes = {
-                'sn'            : "TODO",
+                'sn'            : lname,
                 'homeDirectory' : f"home/{uid}",
-                'cn'            : "TODO",
+                'cn'            : f"{fname} {lname}",
                 'employeeNumber': eid,
                 'uidNumber'     : self.__sambadomainname_unique('uidnumber'),
                 'gidNumber'     : 512,
@@ -241,6 +252,21 @@ class LDAP:
         self.__check_result(result, uid, ['entryAlreadyExists','attributeOrValueExists'])
         for group in init_groups:
             self.groups_add_user(uid, group)
+
+
+    def user_modify(self, uid, eid, fname, lname, mail, m5d):
+        dn = f'uid={uid},ou=people,{LDAP_SUFFIX}'
+        log("MODIFY", f"modify user {dn}")
+        result = self.ldap_conn.modify(
+            dn=dn,
+            changes = {
+                'carLicense': [ (MODIFY_REPLACE, m5d) ],
+                'sn'        : [ (MODIFY_REPLACE, lname) ],
+                'cn'        : [ (MODIFY_REPLACE, f"{fname} {lname}") ],
+                'mail'      : [ (MODIFY_REPLACE, mail) ]
+            }
+        )
+        self.__check_result(result)
 
 
     def user_rename(self, old_uid, new_uid, cfg_user_md5):
@@ -260,8 +286,8 @@ class LDAP:
 
         result = self.ldap_conn.modify(
             dn      = f'uid={new_uid},ou=people,{LDAP_SUFFIX}',
-            changes = {'carLicense':[ (MODIFY_REPLACE, cfg_user_md5)]})
-        self.__check_result(result,f"[USER: {old_uid}->{new_uid} MD5: {cfg_user_md5} ACTION: modify ]")
+            changes = {'carLicense':[ (MODIFY_REPLACE, cfg_user_md5) ]})
+        self.__check_result(result,f"[USER: {old_uid} to {new_uid} MD5: {cfg_user_md5} ACTION: modify ]")
 
 
     def user_delete(self, uid, dn):
@@ -287,32 +313,30 @@ class LDAP:
 
 
     def get_all_groups(self):
-        return [ e.cn.value for e in self.__group_search(['cn']) ]
+        return [ entry.cn.value for entry in self.__group_search(['cn']) ]
+
+
+
+
+###################
+### MAIN SCRIPT ###
+###################
 
 
 def main():
     hard_enforce = False
-    yaml_ldap_file = 'ldap_config.yaml'
-
-    log("STARTING","Loading Configs...")
-    log("SETTING", f"Hard enforce is set to {hard_enforce}.")
-    log("SETTING", f"LDAP yaml config file {yaml_ldap_file}.")
-
-    with open('ldap_config.yaml') as file:
-        ldap_cfg_file = yaml.load(file, Loader=yaml.FullLoader)
-
-    def get_user_groups(eip):
-        user_group_membership = []
-        for role in ldap_cfg_file['users'][eip]['roles']:
-            user_group_membership += ldap_cfg_file['roles'][role]
-            user_group_membership.append(f"role-{role}")
-        return sorted(user_group_membership)
-
-    ####################
-    # GROUP MANAGEMENT #
-    ####################
 
     start_time = time.time()
+
+    log("STARTING","Loading Configs...")
+    log("SETTING", f"HARD_ENFORCE = {hard_enforce}")
+    log("SETTING", f"USER         = {ADMIN_USER}")
+    log("SETTING", f"LDAP_SERVER  = {LDAP_SERVER}")
+    log("SETTING", f"LDAP_YAML    = {LDAP_YAML}")
+    log("SETTING", f"LDAP_SUFFIX  = {LDAP_SUFFIX}")
+
+    with open(LDAP_YAML) as file:
+        ldap_cfg_file = yaml.load(file, Loader=yaml.FullLoader)
 
     log("INFO", "Preloading Group and User Info...")
 
@@ -326,37 +350,56 @@ def main():
         if group not in active_groups:
             ldap.group_create(group)
 
-    ###################
-    # USER MANAGEMENT #
-    ###################
-
     log("INFO","Starting User Create/Update/Enforce Loop ...")
 
     config_users = []
 
-    for cfg_user_eip in ldap_cfg_file['users']:
+    for cfg_user_eid in ldap_cfg_file['users']:
 
-        cfg_user_groups = get_user_groups(cfg_user_eip)
+        cfg_user_groups = []
+        for role in ldap_cfg_file['users'][cfg_user_eid]['roles']:
+            cfg_user_groups += ldap_cfg_file['roles'][role]
+            cfg_user_groups.append(f"role-{role}")
+        cfg_user_groups = sorted(cfg_user_groups)
 
-        userinfo = ldap_cfg_file['users'][cfg_user_eip]
-
+        userinfo = ldap_cfg_file['users'][cfg_user_eid]
         userinfo['groups'] = cfg_user_groups
 
-        cfg_user_uid = userinfo['ldap']['uid']
-        cfg_user_str = json.dumps(userinfo)
-        cfg_user_md5 = hashlib.md5(cfg_user_str.encode()).hexdigest()
+        cfg_user_eid   = str(cfg_user_eid)
+        cfg_user_md5   = hashlib.md5(json.dumps(userinfo).encode()).hexdigest()
+        cfg_user_uid   = userinfo['ldap']['uid']
+        cfg_user_mail  = userinfo['ldap']['mail']
+        cfg_user_fname = userinfo['ldap']['fname']
+        cfg_user_lname = userinfo['ldap']['lname']
 
         config_users.append(cfg_user_uid)
 
         # Create New User
-        if str(cfg_user_eip) not in ldap.get_users_employeenumber():
-            mail  =  userinfo['ldap']['mail']
-            ldap.user_create(cfg_user_uid, cfg_user_eip, mail, cfg_user_md5, cfg_user_groups)
+        if str(cfg_user_eid) not in ldap.get_users_employeenumber():
+            ldap.user_create(
+                cfg_user_uid,
+                cfg_user_eid,
+                cfg_user_fname,
+                cfg_user_lname,
+                cfg_user_mail,
+                cfg_user_md5,
+                cfg_user_groups
+            )
         # Modify Current User
         elif cfg_user_md5 not in ldap.get_users_m5d():
-            curr_user_uid = ldap.users_dict_eid[str(cfg_user_eip)]['uid']
+            curr_user_uid = ldap.users_dict_eid[cfg_user_eid]['uid']
+
             if curr_user_uid != cfg_user_uid:
                 ldap.user_rename(curr_user_uid, cfg_user_uid, cfg_user_md5)
+
+            ldap.user_modify(
+                cfg_user_uid,
+                cfg_user_eid,
+                cfg_user_fname,
+                cfg_user_lname,
+                cfg_user_mail,
+                cfg_user_md5,
+            )
             ldap.groups_enforce(cfg_user_uid, cfg_user_groups, cfg_user_md5)
         # Enforce User Groups
         else:
