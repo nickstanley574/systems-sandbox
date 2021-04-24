@@ -1,16 +1,25 @@
-# Openldap sandbox
+# OpenLDAP Sandbox
 
 ## ❗❕❗**This is not production ready!!!!!**
 
-## phpldapadmin
 
-##  LDAP Tool Box Self Service
+## OpenLDAP
 
-## openldap
+> OpenLDAP Software is an open source implementation of the Lightweight Directory Access Protocol. [OpenLDAP - Main Page](https://www.openldap.org/)
+
+## phpLDAPadmin
+
+> Web-based LDAP browser to manage your LDAP server. phpLDAPadmin (also known as PLA) is a web-based LDAP client. It provides easy, anywhere-accessible, multi-language administration for your LDAP server. Its hierarchical tree-viewer and advanced search functionality make it intuitive to browse and administer your LDAP directory. Since it is a web application, this LDAP browser works on many platforms, making your LDAP server easily manageable from any location. [phpldapadmin - Main Page](http://phpldapadmin.sourceforge.net/wiki/index.php/Main_Page)
+
 
 ## smbldap-tools
 
+
+> Smbldap-tools is a set of perl scripts designed to manage user and group accounts stored in an LDAP directory. They can be used both by users and administrators of Linux systems: * administrators can perform users and groups management operations, in a way similar to the standard useradd or groupmod commands * users can change their LDAP password from the command line and get/change personnel information. [opensuse.org/package](https://software.opensuse.org/package/smbldap-tools) 
+
 ## Python ldap3
+
+> ldap3 is a pure Python LDAP 3 client library strictly conforming to RFC4510 and is released under the LGPL v3 open source license. [Python LDAP3 - readthedocs](https://ldap3.readthedocs.io/en/latest)
 
 ## Resources Read
 
