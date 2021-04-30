@@ -324,12 +324,11 @@ class LDAP:
 
 
 def main():
-    hard_enforce = False
 
     start_time = time.time()
 
     log("STARTING","Loading Configs...")
-    log("SETTING", f"HARD_ENFORCE = {hard_enforce}")
+    log("SETTING", f"HARD_ENFORCE = {HARD_ENFORCE}")
     log("SETTING", f"USER         = {ADMIN_USER}")
     log("SETTING", f"LDAP_SERVER  = {LDAP_SERVER}")
     log("SETTING", f"LDAP_YAML    = {LDAP_YAML}")
@@ -367,10 +366,13 @@ def main():
 
         cfg_user_eid   = str(cfg_user_eid)
         cfg_user_md5   = hashlib.md5(json.dumps(userinfo).encode()).hexdigest()
-        cfg_user_uid   = userinfo['ldap']['uid']
-        cfg_user_mail  = userinfo['ldap']['mail']
-        cfg_user_fname = userinfo['ldap']['fname']
-        cfg_user_lname = userinfo['ldap']['lname']
+        # cfg_user_mail  = userinfo['mail']
+        cfg_user_fname = userinfo['fname']
+        cfg_user_lname = userinfo['lname']
+        cfg_user_uid   = userinfo['uid']
+
+
+
 
         config_users.append(cfg_user_uid)
 
@@ -416,7 +418,7 @@ def main():
         if group not in config_groups:
             ldap.group_delete(group)
 
-    if hard_enforce:
+    if HARD_ENFORCE:
         log("INFO","Hard Enforce enabled removing invalid/unknown users/groups...")
         for user_entry in ldap.invalid_users:
             ldap.user_delete(user_entry.uid.value, user_entry.entry_dn)
@@ -434,7 +436,7 @@ def main():
     log("METRICS", 'Number of change LDAP hits: ' + str(ldap.num_modify_hits))
     log("METRICS", 'Number of  total LDAP hits: ' + str(ldap.num_hits))
 
-    if not hard_enforce:
+    if not HARD_ENFORCE:
         invalid_found = False
         for user_entry in ldap.invalid_users:
             log("WARNING", f"INVALID USER {user_entry.entry_dn}")

@@ -1,52 +1,142 @@
 groups:
-  - gitlab
-  - gitlab-admin
-  - artifactory-readwrite
-  - testing-sudo
-  - prod-mergers
+  - development
+  - sdet
+  - devops
+  - prod-merges
+  - prod-approvers
+  - splunk-readonly
+  - splunk-readwrite
+  - splunk-admin
+  - jenkins-readonly
   - jenkins-admin
-  - prod-sudo
+  - ssh-dev
+  - ssh-testing
+  - ssh-prod
+  - hr-portal
+
 
 roles:
   developer:
-    - gitlab
+    - development
+    - splunk-readwrite
+    - jenkins-readonly
+    - ssh-dev
+  developer-lead:
+    - prod-merges
+    - ssh-prod
   sdet:
-    - prod-mergers
-    - testing-sudo
+    - prod-approvers
+    - ssh-testing
+    - jenkins-readonly
+    - splunk-readwrite
   devops:
-    - gitlab-admin
-    - artifactory-readwrite
-  sysadmin:
+    - splunk-admin
+    - ssh-prod
     - jenkins-admin
-    - prod-sudo
   manager:
-    - ddd
+    - hr-portal
 
+
+#
+
+# EmployeeID:  <--- THIS VALUE SHOULD NOT BE CHANGE ONCE SENT
+#   uid:
+#   fname:
+#   lname:
+#   roles:
+#     - role1
+#     - role2
 
 users:
-  1000:
-    ldap:
-      uid:   tom.stanley
-      mail:  t.stanle2@example.com
-      fname: Tom
-      lname: Stanley
-    roles:
-      - sdet
 
-  1001:
-    ldap:
-      uid:   nstanley
-      mail:  n.stanley@example.com
-      fname: Nick
-      lname: Stanley
+  # Development
+
+  WTLZTMW3:
+    uid:   b.pauletta
+    fname: Bella
+    lname: Pauletta
     roles:
       - developer
 
-  1002:
-    ldap:
-      uid:   zach.stanley2
-      fname: Zach
-      lname: Stanley
-      mail:  zachstanley@foo.com
+  RRI9R7GQ:
+    uid  : r.rudolph
+    fname: Russell
+    lname: Rudolph
     roles:
-      - sysadmin
+      - developer
+
+  VT2K6OP4:
+    uid:   n.heath
+    fname: Natalie
+    lname: Heath
+    roles:
+      - developer
+
+  VTKWCUA4:
+    uid:   zachary.rowe
+    fname: Zachary
+    lname: Rowe
+    roles:
+      - developer
+      - developer-lead
+
+  DPFI0SQM:
+    uid  : alex.ania
+    fname: Alexandra
+    lname: Ania
+    roles:
+      - developer
+      - developer-lead
+      - manager
+
+
+
+  # Testing
+
+  U8SII7QO:
+    uid:   y.benedykta
+    fname: Yaroslava
+    lname: Benedykta
+    roles:
+      - sdet
+      - manager
+
+  Y1SVI66U:
+    uid:   l.gregory
+    fname: Gregory
+    lname: Lee
+    roles:
+      - sdet
+
+  T8QN92SZ:
+    uid:   l.nguyen
+    fname: Lisa
+    lname: Nguyen
+    roles:
+      - sdet
+
+
+
+  # Operations
+
+  BY7T2UCR:
+    uid:   stanley.whittington
+    fname: Stanley
+    lname: Whittington
+    roles:
+      - devops
+      - manager
+
+  TT8QN636:
+    uid:   wei.shandong
+    fname: Wei
+    lname: Shandong
+    roles:
+      - devops
+
+  M82DN1AO:
+    uid:   k.gordon
+    fname: Kelly
+    lname: Gordon
+    roles:
+      - devops

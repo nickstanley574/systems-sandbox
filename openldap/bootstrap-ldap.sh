@@ -11,6 +11,8 @@ PASSWORD="password123"
 echo -n "Installing packages..."
 yum -y -q update
 yum -y -q install \
+    httpd \
+    mod_ssl \
     openldap \
     compat-openldap \
     openldap-servers \
@@ -48,16 +50,6 @@ changetype: modify
 replace: olcRootPW
 olcRootPW: $(</etc/openldap/passwd)
 
-# dn: cn=config
-# changetype: modify
-# replace: olcTLSCertificateFile
-# olcTLSCertificateFile: /etc/openldap/certs/cert.pem
-
-# dn: cn=config
-# changetype: modify
-# replace: olcTLSCertificateKeyFile
-# olcTLSCertificateKeyFile: /etc/openldap/certs/priv.pem
-
 dn: cn=config
 changetype: modify
 replace: olcLogLevel
@@ -68,7 +60,6 @@ changetype: modify
 replace: olcAccess
 olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=$USER,$SUFFIX" read by * none
 EOF
-
 ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
 
 ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
@@ -145,15 +136,60 @@ echo "Config phpldapadmin..."
 /bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php
 sed -i "s/DC1/$DC1/g" /etc/phpldapadmin/config.php
 sed -i "s/DC2/$DC2/g" /etc/phpldapadmin/config.php
-sed -i "s/local/all granted/g" /etc/httpd/conf.d/phpldapadmin.conf
+
+echo "Config TLS..."
+/bin/cp /00-config/certs/files/_.vagrant.local.crt /etc/pki/tls/certs/
+/bin/cp /00-config/certs/files/_.vagrant.local.key /etc/pki/tls/certs/
+chmod 644 /etc/pki/tls/certs/_.vagrant.local.key
+
+/bin/cp /00-config/certs/files/CA/rootCA.crt /etc/pki/ca-trust/source/anchors/rootCA.crt
+update-ca-trust
+
+cat > /etc/openldap/tls1.ldif << EOF
+dn: cn=config
+changetype: modify
+delete: olcTLSCACertificatePath
+
+dn: cn=config
+changetype: modify
+replace: olcTLSCACertificateFile
+olcTLSCACertificateFile: /etc/pki/ca-trust/source/anchors/rootCA.crt
+EOF
+ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls1.ldif
+
+cat > /etc/openldap/tls2.ldif << EOF
+dn: cn=config
+changetype: modify
+replace: olcTLSCertificateKeyFile
+olcTLSCertificateKeyFile: /etc/pki/tls/certs/_.vagrant.local.key
+EOF
+
+cat > /etc/openldap/tls3.ldif << EOF
+dn: cn=config
+changetype: modify
+replace: olcTLSCertificateFile
+olcTLSCertificateFile: /etc/pki/tls/certs/_.vagrant.local.crt
+EOF
+
+# HACK!
+set +e; ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls3.ldif  > /dev/null 2>&1; set -e
+ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls2.ldif
+ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls3.ldif
+
+/bin/cp /vagrant/config/slapd /etc/sysconfig/slapd
+
+systemctl restart slapd
+
+/bin/cp /vagrant/config/phpldapadmin.conf /etc/httpd/conf.d/phpldapadmin.conf
 
 firewall-cmd --zone=public --permanent --add-service=http
 firewall-cmd --zone=public --permanent --add-service=https
+firewall-cmd --zone=public --permanent --add-service=ldaps
 firewall-cmd --reload
 
 systemctl enable httpd
-systemctl start httpd
+systemctl restart httpd
 
 echo
-echo "http://$(hostname -I)/phpldapadmin/" | sed 's/ //g'
+echo "https://$(hostname)/phpldapadmin/" | sed 's/ //g'
 echo

@@ -3,6 +3,12 @@
 ## ❗❕❗**This is not production ready!!!!!**
 
 
+## Environment
+
+* Host: Ubuntu 20.04.2 LTS
+* Vagrant 2.2.15
+  * vagrant-libvirt (0.4.1, global)
+  * vagrant-hostsupdater (1.2.4, global)
 ## OpenLDAP
 
 > OpenLDAP Software is an open source implementation of the Lightweight Directory Access Protocol. [OpenLDAP - Main Page](https://www.openldap.org/)
@@ -48,6 +54,3 @@
 * [openSUSE Software](https://software.opensuse.org/package/smbldap-tools)
 * [openldap - LDAP best way to assign Roles to users - Stack Overflow](https://stackoverflow.com/questions/37915255/ldap-best-way-to-assign-roles-to-users)
 * [phpldapadmin_functions/functions.php at master · probsJustin/phpldapadmin_functions · GitHub](https://github.com/probsJustin/phpldapadmin_functions/blob/master/functions.php)
-
-
-The explanation is very simple, when you create an object in a LDAP directory, this object MUST be with a SINGLE structural class. 

@@ -33,3 +33,9 @@ https://gist.github.com/kojiujau/562e88a16db8d08b627f
 https://www.openldap.org/doc/admin24/guide.html#Reverse%20Group%20Membership%20Maintenance
 https://www.adimian.com/blog/how-to-enable-memberof-using-openldap/
 https://stackoverflow.com/questions/60275276/openldap-configuration-using-posixgroup-and-groupofnames
+
+# HTTPS/SSL
+https://ishan.co/ssl-vagrant-local
+https://forums.centos.org/viewtopic.php?t=28657
+https://discourse.ubuntu.com/t/service-ldap-with-tls/11578
+https://www.golinuxcloud.com/configure-openldap-with-tls-certificates/
