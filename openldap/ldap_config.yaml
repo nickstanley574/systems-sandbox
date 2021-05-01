@@ -12,7 +12,8 @@ groups:
   - ssh-dev
   - ssh-testing
   - ssh-prod
-  - hr-portal
+  - hr-portal-manager
+  - hr-portal-admin
 
 
 roles:
@@ -33,8 +34,12 @@ roles:
     - splunk-admin
     - ssh-prod
     - jenkins-admin
+  cto:
+    - jenkins-readonly
+    - hr-portal-admin
+    - splunk-readwrite
   manager:
-    - hr-portal
+    - hr-portal-manager
 
 
 #
@@ -88,7 +93,8 @@ users:
       - developer
       - developer-lead
       - manager
-
+    additional-access:
+      - ssh-testing
 
 
   # Testing
@@ -116,11 +122,10 @@ users:
       - sdet
 
 
-
   # Operations
 
   BY7T2UCR:
-    uid:   stanley.whittington
+    uid:   s.whittington
     fname: Stanley
     lname: Whittington
     roles:

@@ -6,7 +6,7 @@ DOMAIN="$DC1.$DC2"
 SUFFIX="dc=$DC1,dc=$DC2"
 
 USER="admin"
-PASSWORD="password123"
+PASSWORD="blueMoose?951?"
 
 echo -n "Installing packages..."
 yum -y -q update
@@ -26,6 +26,7 @@ yum -y -q install \
     python3-devel
 
 pip3 -q install pyyaml ldap3
+
 
 
 echo -n "Config slapd and openldap..."
@@ -60,6 +61,7 @@ changetype: modify
 replace: olcAccess
 olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=$USER,$SUFFIX" read by * none
 EOF
+
 ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/changes.ldif
 
 ldapadd -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
@@ -84,6 +86,8 @@ ou: group
 EOF
 
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/base.ldif
+
+
 
 echo "Setup Samba LDAP backend..."
 
@@ -116,28 +120,14 @@ gidNumber: 1000
 EOF
 ldapadd -x -w $PASSWORD -D cn=$USER,$SUFFIX -f /etc/openldap/samba.ldif
 
-echo "Config ldapsync ..."
 
-DIR="/etc/ldapsync"
-mkdir -p $DIR
-cat > $DIR/ldapsync.config << EOF
-[MAIN]
-user        = $USER
-password    = $PASSWORD
-suffix      = $SUFFIX
-sambaSID    = $SAMBASID
-ldapserver  = $(hostname)
-ldapyaml    = /vagrant/ldap_config.yaml
-hardenforce = True
-EOF
-chmod 600 $DIR/ldapsync.config
 
-echo "Config phpldapadmin..."
-/bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php
-sed -i "s/DC1/$DC1/g" /etc/phpldapadmin/config.php
-sed -i "s/DC2/$DC2/g" /etc/phpldapadmin/config.php
+
+
+
 
 echo "Config TLS..."
+
 /bin/cp /00-config/certs/files/_.vagrant.local.crt /etc/pki/tls/certs/
 /bin/cp /00-config/certs/files/_.vagrant.local.key /etc/pki/tls/certs/
 chmod 644 /etc/pki/tls/certs/_.vagrant.local.key
@@ -171,6 +161,7 @@ replace: olcTLSCertificateFile
 olcTLSCertificateFile: /etc/pki/tls/certs/_.vagrant.local.crt
 EOF
 
+
 # HACK!
 set +e; ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls3.ldif  > /dev/null 2>&1; set -e
 ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls2.ldif
@@ -180,7 +171,14 @@ ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /etc/openldap/tls3.ldif
 
 systemctl restart slapd
 
+
+echo "Config phpldapadmin and httpd..."
+/bin/cp /vagrant/config/phpldapadmin.php /etc/phpldapadmin/config.php
+sed -i "s/DC1/$DC1/g" /etc/phpldapadmin/config.php
+sed -i "s/DC2/$DC2/g" /etc/phpldapadmin/config.php
+
 /bin/cp /vagrant/config/phpldapadmin.conf /etc/httpd/conf.d/phpldapadmin.conf
+setsebool -P httpd_can_connect_ldap on
 
 firewall-cmd --zone=public --permanent --add-service=http
 firewall-cmd --zone=public --permanent --add-service=https
@@ -190,6 +188,26 @@ firewall-cmd --reload
 systemctl enable httpd
 systemctl restart httpd
 
-echo
+
+echo "Config and run ldapsync ..."
+
+DIR="/etc/ldapsync"
+mkdir -p $DIR
+cat > $DIR/ldapsync.config << EOF
+[MAIN]
+user        = $USER
+password    = $PASSWORD
+suffix      = $SUFFIX
+sambaSID    = $SAMBASID
+ldapserver  = $(hostname)
+ldapyaml    = /vagrant/ldap_config.yaml
+hardenforce = True
+EOF
+chmod 600 $DIR/ldapsync.config
+
+/vagrant/ldapSync3.py
+
+
+echo "---"
 echo "https://$(hostname)/phpldapadmin/" | sed 's/ //g'
-echo
+echo "Admin Password: $PASSWORD"

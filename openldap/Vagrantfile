@@ -8,7 +8,7 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".vagrant/", rsync__auto: true
   config.vm.provision "shell", path: "./bootstrap-ldap.sh"
   config.vm.provider :libvirt do |v|
-    v.memory = 512
+    v.memory = 256
     v.cpus = 1
   end
 end

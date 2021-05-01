@@ -359,6 +359,12 @@ def main():
         for role in ldap_cfg_file['users'][cfg_user_eid]['roles']:
             cfg_user_groups += ldap_cfg_file['roles'][role]
             cfg_user_groups.append(f"role-{role}")
+
+        if 'additional-access' in ldap_cfg_file['users'][cfg_user_eid]:
+            for group in ldap_cfg_file['users'][cfg_user_eid]['additional-access']:
+                cfg_user_groups.append(group)
+
+
         cfg_user_groups = sorted(cfg_user_groups)
 
         userinfo = ldap_cfg_file['users'][cfg_user_eid]
@@ -366,10 +372,14 @@ def main():
 
         cfg_user_eid   = str(cfg_user_eid)
         cfg_user_md5   = hashlib.md5(json.dumps(userinfo).encode()).hexdigest()
-        # cfg_user_mail  = userinfo['mail']
+
         cfg_user_fname = userinfo['fname']
         cfg_user_lname = userinfo['lname']
         cfg_user_uid   = userinfo['uid']
+        try:
+            cfg_user_mail  = userinfo['mail']
+        except KeyError as e:
+            cfg_user_mail = cfg_user_uid + "@test.com"
 
 
 
