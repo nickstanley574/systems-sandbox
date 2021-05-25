@@ -1,4 +1,5 @@
 groups:
+  - nobody
   - development
   - sdet
   - devops
@@ -14,6 +15,7 @@ groups:
   - ssh-prod
   - hr-portal-manager
   - hr-portal-admin
+  - ldap-admin
 
 
 roles:
@@ -34,6 +36,7 @@ roles:
     - splunk-admin
     - ssh-prod
     - jenkins-admin
+    - ldap-admin
   cto:
     - jenkins-readonly
     - hr-portal-admin
@@ -143,5 +146,13 @@ users:
     uid:   k.gordon
     fname: Kelly
     lname: Gordon
+    roles:
+      - devops
+
+
+  M82DN55O:
+    uid:   y.hello
+    fname: ya
+    lname: hello
     roles:
       - devops

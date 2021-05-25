@@ -1,21 +1,5 @@
 #!/bin/bash
 
-# yum -y install httpd
-# yum -y install mod_ssl
-
-# setenforce 0 # NEED TO CHANGE
-
-# firewall-cmd --zone=public --permanent --add-service=http
-# firewall-cmd --zone=public --permanent --add-service=https
-# firewall-cmd --reload
-
-# systemctl enable httpd
-# systemctl restart httpd
-
-# hostname
-
-set -x
-
 # Run System Update
 
 dnf -y -q update

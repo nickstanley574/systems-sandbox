@@ -244,7 +244,7 @@ class LDAP:
                 'cn'            : f"{fname} {lname}",
                 'employeeNumber': eid,
                 'uidNumber'     : self.__sambadomainname_unique('uidnumber'),
-                'gidNumber'     : 512,
+                'gidNumber'     : 1001,
                 'mail'          : mail,
                 'carLicense'    : m5d,
             }

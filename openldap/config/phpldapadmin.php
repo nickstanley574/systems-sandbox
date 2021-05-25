@@ -1,4 +1,4 @@
-b<?php
+<?php
 /** NOTE **
  ** Make sure that <?php is the FIRST line of this file!
  ** IE: There should NOT be any blank lines or spaces BEFORE <?php

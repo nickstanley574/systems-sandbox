@@ -39,3 +39,12 @@ https://ishan.co/ssl-vagrant-local
 https://forums.centos.org/viewtopic.php?t=28657
 https://discourse.ubuntu.com/t/service-ldap-with-tls/11578
 https://www.golinuxcloud.com/configure-openldap-with-tls-certificates/
+
+
+https://devopsideas.com/openldap-self-service-password-adhoc-ldap-utilities/
+https://kifarunix.com/setup-ldap-self-service-password-tool-on-centos-8/
+http://etutorials.org/Server+Administration/ldap+system+administration/Part+I+LDAP+Basics/Chapter+3.+OpenLDAP/3.6+Access+Control+Lists+ACLs/
+http://www.yolinux.com/TUTORIALS/LinuxTutorialLDAP-BindPW.html
+
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_authentication_and_authorization_in_rhel/configuring-sssd-to-use-ldap-and-require-tls-authentication_configuring-authentication-and-authorization-in-rhel
+https://sssd.io/docs/quick-start.html
