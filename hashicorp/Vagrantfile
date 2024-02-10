@@ -1,0 +1,61 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
+hashistack_host_mapping = [
+  'hashistack1.global=192.168.22.10',
+  'hashistack2.global=192.168.22.11',
+  'hashistack3.global=192.168.22.12',
+]
+
+
+Vagrant.configure("2") do |config|
+  config.vm.define "tmp-cert-creator" do |config|
+    config.vm.box = "generic/ubuntu2204"
+    config.vm.provision "shell", keep_color: true, path: "create_nomad_certs.sh"
+    config.vm.provider :libvirt do |v|
+      v.memory = 1512
+    end
+  end
+end
+
+
+n = 3
+
+Vagrant.configure("2") do |config|
+  (1..n).each do |i|
+    config.vm.define "hashistack#{i}" do |config|
+
+      vm_vagrant_address = hashistack_host_mapping[i-1].split('=')[1]
+
+      config.vm.hostname = "hashistack#{i}.global"
+      config.vm.box = "generic/ubuntu2204"
+      config.vm.network "private_network", ip: vm_vagrant_address
+  
+      config.vm.provision "shell", inline: "mkdir -p /tmp/nomad.d/; chmod 777 /tmp/nomad.d/;"
+      config.vm.provision "shell", inline: "mkdir -p /tmp/nginx/; chmod 777 /tmp/nginx/;"
+
+      config.vm.provision "file", source: "nomad-server.hcl", destination: "/tmp/nomad.d/nomad-server.hcl"
+      config.vm.provision "file", source: "nginx.conf", destination: "/tmp/nginx/nginx.conf"
+      # config.vm.provision "file", source: "nomad-client.hcl", destination: "/tmp/nomad-client.hcl"
+
+      [
+        "nomad-agent-ca.pem",
+        "global-server-nomad-key.pem",
+        "global-server-nomad.pem",
+        "global-cli-nomad-key.pem",
+        "global-cli-nomad.pem"
+      ].each do |cert|
+        config.vm.provision "file", source: "certificates/#{cert}", destination: "/tmp/nomad.d/#{cert}"
+      end
+    
+      config.vm.provision "shell", keep_color: true, path: "init.sh", args: [vm_vagrant_address, hashistack_host_mapping.join(',')]
+
+      config.vm.provider :libvirt do |v|
+          v.memory = 1256
+      end
+
+    end
+  end
+end
