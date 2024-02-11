@@ -11,3 +11,8 @@ client {
       "hashistack3.vagrant",
   ]
 }
+
+
+# If verify_server_hostname is set to false, the client's certificate will
+    # be checked to ensure it is signed by the same CA, but its role and region
+    # will not be verified. This allows flexibility in client configuration.

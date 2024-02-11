@@ -30,9 +30,25 @@ printf "\n=== Create Nomad Certs ===\n\n"
 
 pwd 
 
+# Generate a Nomad CA
+# nomad-agent-ca-key.pem - **CA private key. Keep safe.**
+# nomad-agent-ca.pem - CA public certificate.
 nomad tls ca create
+
+# Generate a certificate for the Nomad server
+# global-server-nomad-key.pem - Nomad server node private key for the `global` region.
+# global-server-nomad.pem - Nomad server node public certificate for the `global` region.
 nomad tls cert create -server -region global -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
+
+# Generate a certificate for the Nomad client.
+# global-client-nomad-key.pem - Nomad client node private key for the `global` region.
+# global-client-nomad.pem - Nomad client node public certificate for the `global` region.
 nomad tls cert create -client
+
+# Generate a certificate for the CLI   
+# global-cli-nomad-key.pem - Nomad CLI private key for the `global` region.
+# global-cli-nomad.pem - Nomad CLI certificate for the `global` region.
 nomad tls cert create -cli -additional-dnsname hashistack.vagrant.local
+
 
 ls -al
