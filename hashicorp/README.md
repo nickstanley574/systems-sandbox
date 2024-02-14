@@ -27,7 +27,7 @@ In a real prod setup each hashicorp service should be on their own dedicate sing
     - [Vagrant Libvirt Provider](https://vagrant-libvirt.github.io/vagrant-libvirt/) 0.7.0-1
 - Software versions
     - VagrantBox - [generic/ubuntu2204](https://app.vagrantup.com/generic/boxes/ubuntu2204)
-    - Nomad - 
+    - Nomad - 1.7.4 
     - Consul - TBD
     - Vault - TBD
     - Nginx - 

@@ -1,8 +1,7 @@
 #/bin/bash
 set -x
 
-vm_vagrant_address=$1
-nomad_vagrant_ipaddress=$2
+nomad_vagrant_ipaddress=$1
 
 # Split the string into an array using commas as the delimiter
 IFS=',' read -ra entries <<< "$nomad_vagrant_ipaddress"
@@ -13,9 +12,13 @@ for entry in "${entries[@]}"; do
     echo "$ipaddress $hostname" | sudo tee -a /etc/hosts
 done
 
+
 # Install the required packages.
 apt-get update
-apt-get install wget gpg coreutils
+apt-get install gpg coreutils
+
+
+printf "\n\n=== Install Nomad ===\n\n"
 
 # Add the HashiCorp GPG key.
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -25,39 +28,80 @@ GPG_KEY_FILE="/usr/share/keyrings/hashicorp-archive-keyring.gpg"
 REPO_URL="https://apt.releases.hashicorp.com"
 RELEASE_CODENAME=$(lsb_release -cs)
 REPO_LINE="deb [signed-by=${GPG_KEY_FILE}] ${REPO_URL} ${RELEASE_CODENAME} main"
-
 echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
-# Update and install.
+# Update the package index.
 apt-get update
-apt-get install -y nginx
-apt-get install -y nomad
 
-# consul vault
+# Install the Nomad package.
+apt-get install nomad
 
+# # Enable autocompletion for Nomad commands.
 nomad -autocomplete-install
 
-#consul -autocomplete-install
-#vault -autocomplete-install
-
-printf "\n=== Apt Installs Done ===\n\n"
-
+# Display the installed Nomad version.
 nomad --version
-#consul --version
-#vault --version
 
-printf "\n=== Configuring Nomad ===\n\n"
+# When nomad-cert-creator make the nomad certificates
+# then exit 0 out of the init.sh script to allow 
+# certs to be copied to host
+if [ "$(hostname)" = "nomad-cert-creator" ]; then
 
+    printf "\n=== Create Nomad Certs ===\n\n"
+
+    pwd 
+
+    # Generate a Nomad CA
+    # nomad-agent-ca-key.pem - **CA private key. Keep safe.**
+    # nomad-agent-ca.pem - CA public certificate.
+    nomad tls ca create
+
+    # Generate a certificate for the Nomad server
+    # global-server-nomad-key.pem - Nomad server node private key for the `global` region.
+    # global-server-nomad.pem - Nomad server node public certificate for the `global` region.
+    nomad tls cert create -server -region global -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
+
+    # Generate a certificate for the Nomad client.
+    # global-client-nomad-key.pem - Nomad client node private key for the `global` region.
+    # global-client-nomad.pem - Nomad client node public certificate for the `global` region.
+    nomad tls cert create -client
+
+    # Generate a certificate for the CLI   
+    # global-cli-nomad-key.pem - Nomad CLI private key for the `global` region.
+    # global-cli-nomad.pem - Nomad CLI certificate for the `global` region.
+    nomad tls cert create -cli -additional-dnsname hashistack.vagrant.local
+
+    ls -al
+
+    printf "\n[init.sh] Certificate creations completed.\n"
+    exit 0  
+fi
+
+
+printf "\n\n=== Config Nomad ===\n\n"
+
+# Remove existing Nomad configuration files
 rm -rf /etc/nomad.d/*
-mv -v /tmp/nomad.d/* /etc/nomad.d/
 
+# Move Nomad configuration files to /etc/nomad.d/
+mv -v /vagrant/nomad-server.hcl /etc/nomad.d/
+
+# Move nomad certificates to /etc/nomad.d/
+mv -v /vagrant/certificates/*.pem /etc/nomad.d/
+
+# Move Nomad public CA certificate
+mv -v /vagrant/certificates/ca/nomad-agent-ca.pem /etc/nomad.d/
+
+# Set ownership to nomad user and group
 chown -R nomad:nomad /etc/nomad.d/*
+
+# Adjust permissions
 chmod -R 640 /etc/nomad.d/*
 
-# chown -R nomad:nomad /opt/nomad/*
+ls -al /etc/nomad.d/
 
-echo "VAGRANT_IPADDRES=$vm_vagrant_address" >> /etc/environment
-
+# Create an override configuration file for the Nomad service.
+# This sets the User and Group for the Nomad service to 'nomad'.
 mkdir -p /etc/systemd/system/nomad.service.d/
 cat << EOF > /etc/systemd/system/nomad.service.d/override.conf
 [Service]
@@ -65,23 +109,21 @@ User=nomad
 Group=nomad
 EOF
 
-printf "\n\n=== Confiuring nginx ===\n\n"
-mv /tmp/nginx/nginx.conf /etc/nginx/nginx.conf
+systemctl enable nomad
+systemctl restart nomad
+systemctl status nomad
+
+
+
+printf "\n\n=== Install and Confiuring Nginx ===\n\n"
+
+apt-get install -y nginx
+
+mv /vagrant/nginx.conf /etc/nginx/nginx.conf
 chown root:root /etc/nginx/nginx.conf
 chmod 644 /etc/nginx/nginx.conf
 
 systemctl enable nginx
 systemctl restart nginx
 systemctl status nginx
-
-printf "\n\n=== Starting Nomad ===\n\n"
-
-systemctl enable nomad
-systemctl restart nomad
-systemctl status nomad
-
-# Give time for all instance to start and connect
-sleep 6
-
-# printf "\n\nnomad-ui: https://$vm_vagrant_address:4646/ui/\n\n"
 
