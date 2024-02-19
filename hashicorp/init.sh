@@ -89,9 +89,6 @@ mv -v /vagrant/nomad-server.hcl /etc/nomad.d/
 # Move nomad certificates to /etc/nomad.d/
 mv -v /vagrant/certificates/*.pem /etc/nomad.d/
 
-# Move nomad acl polices to /etc/nomad.d/
-mv -v /vagrant/acls /etc/nomad.d/acls
-
 mv -v /vagrant/nomad-cli.env /etc/nomad.d/
 
 # Set ownership to nomad user and group
@@ -117,24 +114,46 @@ systemctl enable nomad
 systemctl restart nomad
 
 # give nomad time to finshing starting
-sleep 3
+sleep 8
 
 systemctl status nomad
 
-source /etc/nomad.d/nomad-cli.env
+# Create Managment Token on Each Nomad Server
+if [ "$(hostname)" = "hashistack1" ]; then
 
-nomad acl bootstrap >> /etc/nomad.d/bootstrap.token
+    source /etc/nomad.d/nomad-cli.env
 
-chmod -R 600 /etc/nomad.d/bootstrap.token
-chown -R nomad:nomad /etc/nomad.d/bootstrap.token
+    MAX_ATTEMPTS=9
 
-export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' /etc/nomad.d/bootstrap.token)
+    SLEEP_DURATION=10
 
-nomad acl policy apply -description "Anonymous policy (Read-Only)" anonymous /etc/nomad.d/acls/acl-anonymous.policy.hcl
+    for ((attempt=1; attempt<=$MAX_ATTEMPTS; attempt++)); do
 
-nomad acl policy apply -description "Developer policy" developer /etc/nomad.d/acls/acl-developer.policy.hcl
+        nomad acl bootstrap > /etc/nomad.d/bootstrap.token 2>&1
 
-nomad acl policy apply -description "Operations policy" platform /etc/nomad.d/acls/acl-platform.policy.hcl
+        if grep -q "response code: 500 (No cluster leader)" "/etc/nomad.d/bootstrap.token"; then
+            echo "No cluster leader. Retrying in ${SLEEP_DURATION}s (Attempt $attempt/$MAX_ATTEMPTS)"
+            sleep $SLEEP_DURATION
+        elif [ $attempt -eq $MAX_ATTEMPTS ]; then
+            echo "Maximum number of attempts reached. Exiting with an error."
+            exit 1
+        else
+            echo "Nomad ACL Bootstap Complete"
+            break
+        fi
+    done
+
+    chmod -R 600 /etc/nomad.d/bootstrap.token
+    chown -R nomad:nomad /etc/nomad.d/bootstrap.token
+
+
+    # Move nomad acl polices to /etc/nomad.d/
+    mv -v /vagrant/acls /etc/nomad.d/acls
+
+    export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' /etc/nomad.d/bootstrap.token)
+    nomad acl policy apply -description "Anonymous policy (Read-Only)" anonymous /etc/nomad.d/acls/acl-anonymous.policy.hcl
+    nomad acl policy apply -description "Developer policy" developer /etc/nomad.d/acls/acl-developer.policy.hcl
+fi
 
 
 

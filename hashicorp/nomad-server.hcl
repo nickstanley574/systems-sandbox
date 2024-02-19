@@ -5,13 +5,13 @@ bind_addr  = "0.0.0.0"
 
 server {
   enabled          = true
-  bootstrap_expect = 1
+  bootstrap_expect = 3
 
   server_join {
     retry_join = [
       "hashistack1.global",
-      // "hashistack2.global",
-      // "hashistack3.global",
+      "hashistack2.global",
+      "hashistack3.global",
     ]
 
     # Every 15 seconds try to connect to cluster
@@ -46,9 +46,9 @@ tls {
 ui {
   enabled = true
   label {
-      text             = "Local Vagrant Clusters"
-      background_color = "yellow"
+      text             = "Local Vagrant Cluster"
       text_color       = "#000000"
+      background_color = "#ffdd04"
     }
 }
 
