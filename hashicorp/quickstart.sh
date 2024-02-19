@@ -2,27 +2,6 @@
 
 set -e
 
-check_file_existence() {
-    local file="$1"
-    local max_attempts="$2"
-    local wait_time="$3"
-
-    for ((i=1; i<=$max_attempts; i++)); do
-        if [ -e "$file" ]; then
-            echo "File $file found. Continuing..."
-            return 0  # Success
-        else
-            echo "File $file not found. Waiting $wait_time seconds (attempt $i/$max_attempts)..."
-            sleep $wait_time
-        fi
-
-        if [ $i -eq $max_attempts ]; then
-            echo "Maximum attempts reached. Exiting..."
-            return 1  # Failure
-        fi
-    done
-}
-
 script_name=$(basename "$0")
 
 create_nomad_certs=false
@@ -86,9 +65,48 @@ fi
 #     fi
 # done
 
-# vagrant up hashistack1
 
-vagrant up hashistack1 hashistack2 hashistack3
+# Check if the ENV Var CLUSTER_SIZE is set
+if [ -z "$CLUSTER_SIZE" ]; then
+    echo "[$script_name] INFO: CLUSTER_SIZE is not set. Defaulting to 1."
+    CLUSTER_SIZE=1
+fi
+
+# Check the value of CLUSTER_SIZE
+if [ "$CLUSTER_SIZE" -eq 1 ]; then
+  echo "[$script_name] CLUSTER_SIZE is 1"
+elif [ "$CLUSTER_SIZE" -eq 3 ]; then
+  echo "[$script_name] CLUSTER_SIZE is 3"
+elif [ "$CLUSTER_SIZE" -eq 5 ]; then
+  echo "[$script_name] CLUSTER_SIZE is 3"
+else
+  echo "[$script_name] ERROR: CLUSTER_SIZE must be either 1 or 3."
+  exit 1
+fi
+
+
+vagrant up hashistack1
+
+# vagrant up hashistack1 hashistack2 hashistack3
+
+
+while true; do
+    read -p "Waiting to destroy cluster (yes/no): " choice
+    case $choice in
+        [Yy]|[Yy][Ee][Ss]) 
+            vagrant destroy -f
+            break
+            ;;
+        [Nn]|[Nn][Oo])
+            echo "Exiting..."
+            exit 1
+            ;;
+        *)
+            echo "Invalid input. Please enter 'yes' or 'no'."
+            ;;
+    esac
+done
+
 
 echo "[$script_name] Done"
 

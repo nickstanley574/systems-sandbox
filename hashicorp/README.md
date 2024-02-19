@@ -255,6 +255,15 @@ TODO
 
 - `export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' app-dev.token)`
 
+- Deleting
+
+    - `nomad acl token delete $(awk '/Accessor/ {print $4}' prod-ops.token)`
+
+    - `nomad acl policy delete prod-ops`
+
+- [hashicorp.com - Generate Nomad tokens with HashiCorp Vault](https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets)
+
+    - HashiCorp Vault has a secrets engine for generating short-lived Nomad tokens. As Vault has a number of authentication backends, it could provide a workflow where a user or orchestration system authenticates using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived Nomad token.
 
 #### TLS
 

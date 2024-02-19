@@ -1,5 +1,5 @@
 #/bin/bash
-set -x
+set -xe
 
 nomad_vagrant_ipaddress=$1
 
@@ -15,7 +15,8 @@ done
 
 # Install the required packages.
 apt-get update
-apt-get install gpg coreutils
+apt-get install -y gpg coreutils
+apt-get install -y nginx
 
 
 printf "\n\n=== Install Nomad ===\n\n"
@@ -34,7 +35,7 @@ echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 apt-get update
 
 # Install the Nomad package.
-apt-get install nomad
+apt-get install -y nomad
 
 # # Enable autocompletion for Nomad commands.
 nomad -autocomplete-install
@@ -48,8 +49,6 @@ nomad --version
 if [ "$(hostname)" = "nomad-cert-creator" ]; then
 
     printf "\n=== Create Nomad Certs ===\n\n"
-
-    pwd 
 
     # Generate a Nomad CA
     # nomad-agent-ca-key.pem - **CA private key. Keep safe.**
@@ -78,6 +77,7 @@ if [ "$(hostname)" = "nomad-cert-creator" ]; then
 fi
 
 
+
 printf "\n\n=== Config Nomad ===\n\n"
 
 # Remove existing Nomad configuration files
@@ -89,8 +89,10 @@ mv -v /vagrant/nomad-server.hcl /etc/nomad.d/
 # Move nomad certificates to /etc/nomad.d/
 mv -v /vagrant/certificates/*.pem /etc/nomad.d/
 
-# Move Nomad public CA certificate
-mv -v /vagrant/certificates/ca/nomad-agent-ca.pem /etc/nomad.d/
+# Move nomad acl polices to /etc/nomad.d/
+mv -v /vagrant/acls /etc/nomad.d/acls
+
+mv -v /vagrant/nomad-cli.env /etc/nomad.d/
 
 # Set ownership to nomad user and group
 chown -R nomad:nomad /etc/nomad.d/*
@@ -109,15 +111,34 @@ User=nomad
 Group=nomad
 EOF
 
+systemctl daemon-reload
+
 systemctl enable nomad
 systemctl restart nomad
+
+# give nomad time to finshing starting
+sleep 3
+
 systemctl status nomad
 
+source /etc/nomad.d/nomad-cli.env
+
+nomad acl bootstrap >> /etc/nomad.d/bootstrap.token
+
+chmod -R 600 /etc/nomad.d/bootstrap.token
+chown -R nomad:nomad /etc/nomad.d/bootstrap.token
+
+export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' /etc/nomad.d/bootstrap.token)
+
+nomad acl policy apply -description "Anonymous policy (Read-Only)" anonymous /etc/nomad.d/acls/acl-anonymous.policy.hcl
+
+nomad acl policy apply -description "Developer policy" developer /etc/nomad.d/acls/acl-developer.policy.hcl
+
+nomad acl policy apply -description "Operations policy" platform /etc/nomad.d/acls/acl-platform.policy.hcl
 
 
-printf "\n\n=== Install and Confiuring Nginx ===\n\n"
 
-apt-get install -y nginx
+printf "\n\n=== Confiuring Nginx ===\n\n"
 
 mv /vagrant/nginx.conf /etc/nginx/nginx.conf
 chown root:root /etc/nginx/nginx.conf
@@ -126,4 +147,5 @@ chmod 644 /etc/nginx/nginx.conf
 systemctl enable nginx
 systemctl restart nginx
 systemctl status nginx
+
 

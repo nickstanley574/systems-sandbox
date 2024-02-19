@@ -10,8 +10,8 @@ server {
   server_join {
     retry_join = [
       "hashistack1.global",
-      "hashistack2.global",
-      "hashistack3.global",
+      // "hashistack2.global",
+      // "hashistack3.global",
     ]
 
     # Every 15 seconds try to connect to cluster
@@ -52,6 +52,6 @@ ui {
     }
 }
 
-// acl {
-//   enabled = true
-// }
+acl {
+  enabled = true
+}
