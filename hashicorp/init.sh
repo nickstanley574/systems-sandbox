@@ -3,16 +3,6 @@ set -xe
 
 nomad_vagrant_ipaddress=$1
 
-# Split the string into an array using commas as the delimiter
-IFS=',' read -ra entries <<< "$nomad_vagrant_ipaddress"
-
-# Loop over the entries and append to /etc/hosts
-for entry in "${entries[@]}"; do
-    IFS='=' read -r hostname ipaddress <<< "$entry"
-    echo "$ipaddress $hostname" | sudo tee -a /etc/hosts
-done
-
-
 # Install the required packages.
 apt-get update
 apt-get install -y gpg coreutils

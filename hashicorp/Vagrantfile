@@ -12,7 +12,7 @@ if ENV['CERT_CREATION'] == 'true'
       config.vm.hostname = "nomad-cert-creator"
 
       config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
-    
+
       config.vm.provision "shell", keep_color: true, path: "init.sh"
 
       config.vm.provider :libvirt do |v|
@@ -23,28 +23,31 @@ if ENV['CERT_CREATION'] == 'true'
 
 else
 
-  hashistack_host_mapping = [
-    'hashistack1.global=192.168.22.10',
-    'hashistack2.global=192.168.22.11',
-    'hashistack3.global=192.168.22.12',
+  servers = [
+    { :name => "hashistack1.global", :ip => "192.168.22.10" },
+    { :name => "hashistack2.global", :ip => "192.168.22.11" },
+    { :name => "hashistack3.global", :ip => "192.168.22.12" },
   ]
 
   n = 3
 
   Vagrant.configure("2") do |config|
-    (1..n).each do |i|
-      config.vm.define "hashistack#{i}" do |config|
+    (0..n-1).each do |i|
+      config.vm.define "hashistack#{i + 1}" do |config|
 
-        vm_vagrant_address = hashistack_host_mapping[i-1].split('=')[1]
+        config.vm.hostname = servers[i][:name]
 
-        config.vm.hostname = "hashistack#{i}.global"
-    
         config.vm.box = "generic/ubuntu2204"
-        config.vm.network "private_network", ip: vm_vagrant_address
-    
+        config.vm.network "private_network", ip: servers[i][:ip]
+
         config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
-      
-        config.vm.provision "shell", keep_color: true, path: "init.sh", args: [hashistack_host_mapping.join(',')]
+
+        # Add all servers to hosts file
+        servers.each do |h|
+          config.vm.provision "shell", inline: "echo #{h[:ip]} #{h[:name]} | sudo tee -a /etc/hosts"
+        end
+
+        config.vm.provision "shell", keep_color: true, path: "init.sh"
 
         config.vm.provider :libvirt do |v|
             v.memory = 1256
