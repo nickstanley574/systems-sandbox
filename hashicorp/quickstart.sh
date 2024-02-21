@@ -79,8 +79,6 @@ if [ "$CLUSTER_SIZE" -eq 1 ]; then
 elif [ "$CLUSTER_SIZE" -eq 3 ]; then
     echo "[$script_name] CLUSTER_SIZE is 3"
     vagrant up hashistack1 hashistack2 hashistack3
-elif [ "$CLUSTER_SIZE" -eq 5 ]; then
-    echo "[$script_name] CLUSTER_SIZE is 3"
 else
     echo "[$script_name] ERROR: CLUSTER_SIZE must be either 1 or 3."
     exit 1
