@@ -52,9 +52,29 @@ if [ "$create_nomad_certs" = true ]; then
         CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat $cert" > certificates/$cert
     done
 
+    echo "[$script_name] id_rsa_hashistack"
+    CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat id_rsa_hashistack" > ssh/id_rsa_hashistack
+
+    echo "[$script_name] id_rsa_hashistack.pub"
+    CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat id_rsa_hashistack.pub" > ssh/id_rsa_hashistack.pub
+
+
+    # When running 'vagrant ssh -c "sudo cat id_rsa_hashistack,"' it adds a
+    # carriage return ^M at the end of every line of the SSH key pairs for some
+    # reason. Everything I read online says this occurs when transferring
+    # Windows files to a Linux system, it's not the case here and I have not
+    # found the root cause. This issue causes problems when using the keys
+    # for SSH commands, such as the "Load key "id_rsa_hashistack": error in libcrypto."
+    #
+    # The below sed command removes the carriage return.
+
+    sed -i 's/\r//g' ssh/id_rsa_hashistack ssh/id_rsa_hashistack.pub
+
     CERT_CREATION=true vagrant destroy $CERT_VM_NAME -f
-    
-    echo "[$script_name] Nomad certificates creation completed." 
+
+    echo "[$script_name] Nomad certificates creation completed."
+
+    exit 0
 
 fi
 
@@ -91,7 +111,7 @@ fi
 while true; do
     read -p "Waiting to destroy cluster (yes/no): " choice
     case $choice in
-        [Yy]|[Yy][Ee][Ss]) 
+        [Yy]|[Yy][Ee][Ss])
             vagrant destroy -f
             break
             ;;

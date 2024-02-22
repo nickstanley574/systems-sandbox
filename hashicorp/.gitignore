@@ -1,1 +1,5 @@
-certificates/*
+certificates/
+ssh/
+*.token
+id_rsa*
+*.log

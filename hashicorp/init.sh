@@ -33,9 +33,8 @@ nomad -autocomplete-install
 # Display the installed Nomad version.
 nomad --version
 
-# When nomad-cert-creator make the nomad certificates
-# then exit 0 out of the init.sh script to allow 
-# certs to be copied to host
+# When nomad-cert-creator make the nomad certificates nthen exit 0
+# out of the init.sh script to allow certs to be copied to host
 if [ "$(hostname)" = "nomad-cert-creator" ]; then
 
     printf "\n=== Create Nomad Certs ===\n\n"
@@ -55,20 +54,38 @@ if [ "$(hostname)" = "nomad-cert-creator" ]; then
     # global-client-nomad.pem - Nomad client node public certificate for the `global` region.
     nomad tls cert create -client
 
-    # Generate a certificate for the CLI   
+    # Generate a certificate for the CLI
     # global-cli-nomad-key.pem - Nomad CLI private key for the `global` region.
     # global-cli-nomad.pem - Nomad CLI certificate for the `global` region.
     nomad tls cert create -cli -additional-dnsname hashistack.vagrant.local
 
+    printf "\n[init.sh] Certificate creations completed.\n"
+
+    ssh-keygen -t rsa -b 2048 -C "hashistack" -f "id_rsa_hashistack"
+
     ls -al
 
-    printf "\n[init.sh] Certificate creations completed.\n"
-    exit 0  
+    exit 0
 fi
 
 
+printf "\n\n===== Create hashistack User =====\n\n"
 
-printf "\n\n=== Config Nomad ===\n\n"
+useradd -m --shell /bin/bash hashistack
+usermod -aG nomad hashistack
+
+mv -v /vagrant/ssh /home/hashistack/.ssh
+
+cat /home/hashistack/.ssh/id_rsa_hashistack.pub > /home/hashistack/.ssh/authorized_keys
+
+chown -R hashistack:hashistack /home/hashistack/.ssh/ /home/hashistack/.ssh/*
+
+chmod -R 0700 /home/hashistack/.ssh
+chmod -R 0600 /home/hashistack/.ssh/*
+chmod 644 /home/hashistack/.ssh/*.pub
+
+
+printf "\n\n===== Config Nomad =====\n\n"
 
 # Remove existing Nomad configuration files
 rm -rf /etc/nomad.d/*
