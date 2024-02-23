@@ -40,20 +40,20 @@ else
         config.vm.box = "generic/ubuntu2204"
         config.vm.network "private_network", ip: servers[i][:ip]
 
-        config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
+        config.vm.provider :libvirt do |v|
+          v.memory = 1256
+        end
 
         # Add all servers to hosts file
         servers.each do |h|
           config.vm.provision "shell", inline: "echo #{h[:ip]} #{h[:name]} | sudo tee -a /etc/hosts"
         end
 
+        config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
+
         config.vm.provision "shell", keep_color: true, path: "init.sh"
 
-        config.vm.provider :libvirt do |v|
-            v.memory = 1256
-        end
       end
     end
   end
-
 end
