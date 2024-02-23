@@ -102,6 +102,7 @@ mv -v /vagrant/nomad-cli.env /etc/nomad.d/
 chown -R nomad:nomad /etc/nomad.d/*
 
 # Adjust permissions
+chmod  770 /etc/nomad.d/
 chmod -R 640 /etc/nomad.d/*
 
 ls -al /etc/nomad.d/
@@ -151,7 +152,16 @@ if [ "$(hostname)" = "hashistack1" ]; then
     done
 
     chmod -R 600 /etc/nomad.d/bootstrap.token
-    chown -R nomad:nomad /etc/nomad.d/bootstrap.token
+    chown -R hashistack:hashistack /etc/nomad.d/bootstrap.token
+
+    ls -al /etc/nomad.d/*
+
+    HOSTS=("hashistack2.global" "hashistack3.global")
+
+    for host in "${HOSTS[@]}"; do
+        sudo -u hashistack bash -c "ssh-keyscan -H $host >> /home/hashistack/.ssh/known_hosts"
+        sudo -u hashistack bash -c "scp -i /home/hashistack/.ssh/id_rsa_hashistack /etc/nomad.d/bootstrap.token hashistack@$host:/etc/nomad.d/bootstrap.token"
+    done
 
 
     # Move nomad acl polices to /etc/nomad.d/
