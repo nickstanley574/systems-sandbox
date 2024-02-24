@@ -1,6 +1,9 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require 'erb'
+
+
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
 
 if ENV['CERT_CREATION'] == 'true'
@@ -23,16 +26,30 @@ if ENV['CERT_CREATION'] == 'true'
 
 else
 
+
+  CLUSTER_SIZE = Integer(ENV['CLUSTER_SIZE'])
+
   servers = [
     { :name => "hashistack1.global", :ip => "192.168.22.10" },
     { :name => "hashistack2.global", :ip => "192.168.22.11" },
     { :name => "hashistack3.global", :ip => "192.168.22.12" },
   ]
 
-  n = 3
+  servers = servers.first(CLUSTER_SIZE)
+
+  nomad_port = 4646
+
+  templates = ['nomad-server.hcl.erb', 'nginx.conf.erb']
+
+  templates.each do |template_name|
+    template = File.read(template_name)
+    result = ERB.new(template, nil, '-').result(binding)
+    output_file = "generated_assets/#{template_name.gsub('.erb', '')}"
+    File.write(output_file, result)
+  end
 
   Vagrant.configure("2") do |config|
-    (0..n-1).each do |i|
+    (0..CLUSTER_SIZE - 1 ).each do |i|
       config.vm.define "hashistack#{i + 1}" do |config|
 
         config.vm.hostname = servers[i][:name]

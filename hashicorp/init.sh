@@ -91,7 +91,7 @@ printf "\n\n===== Config Nomad =====\n\n"
 rm -rf /etc/nomad.d/*
 
 # Move Nomad configuration files to /etc/nomad.d/
-mv -v /vagrant/nomad-server.hcl /etc/nomad.d/
+mv -v /vagrant/generated_assets/nomad-server.hcl /etc/nomad.d/
 
 # Move nomad certificates to /etc/nomad.d/
 mv -v /vagrant/certificates/*.pem /etc/nomad.d/
@@ -154,20 +154,22 @@ if [ "$(hostname)" = "hashistack1" ]; then
     chmod -R 600 /etc/nomad.d/bootstrap.token
     chown -R hashistack:hashistack /etc/nomad.d/bootstrap.token
 
-    ls -al /etc/nomad.d/*
+    export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' /etc/nomad.d/bootstrap.token)
 
-    HOSTS=("hashistack2.global" "hashistack3.global")
+    nomad server members
 
-    for host in "${HOSTS[@]}"; do
+    sleep 5
+
+    hosts=$(nomad server members | awk 'NR>1 {print $1}')
+
+    for host in $hosts; do
         sudo -u hashistack bash -c "ssh-keyscan -H $host >> /home/hashistack/.ssh/known_hosts"
         sudo -u hashistack bash -c "scp -i /home/hashistack/.ssh/id_rsa_hashistack /etc/nomad.d/bootstrap.token hashistack@$host:/etc/nomad.d/bootstrap.token"
     done
 
-
     # Move nomad acl polices to /etc/nomad.d/
     mv -v /vagrant/acls /etc/nomad.d/acls
 
-    export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' /etc/nomad.d/bootstrap.token)
     nomad acl policy apply -description "Anonymous policy (Read-Only)" anonymous /etc/nomad.d/acls/acl-anonymous.policy.hcl
     nomad acl policy apply -description "Developer policy" developer /etc/nomad.d/acls/acl-developer.policy.hcl
 fi
@@ -176,12 +178,11 @@ fi
 
 printf "\n\n=== Confiuring Nginx ===\n\n"
 
-mv /vagrant/nginx.conf /etc/nginx/nginx.conf
+mv /vagrant/generated_assets/nginx.conf /etc/nginx/nginx.conf
 chown root:root /etc/nginx/nginx.conf
 chmod 644 /etc/nginx/nginx.conf
 
 systemctl enable nginx
 systemctl restart nginx
 systemctl status nginx
-
 

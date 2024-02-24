@@ -3,3 +3,4 @@ ssh/
 *.token
 id_rsa*
 *.log
+generated_assets/
