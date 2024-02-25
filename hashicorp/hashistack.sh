@@ -98,7 +98,7 @@ if [ "$CLUSTER_SIZE" -eq 1 ]; then
     vagrant up hashistack1
 elif [ "$CLUSTER_SIZE" -eq 3 ]; then
     echo "[$script_name] CLUSTER_SIZE is 3"
-    vagrant up hashistack1 hashistack2 hashistack3
+    vagrant up hashistack1 hashistack2 hashistack3 | tee -a quickstart.log
 else
     echo "[$script_name] ERROR: CLUSTER_SIZE must be either 1 or 3."
     exit 1
@@ -112,7 +112,7 @@ while true; do
     read -p "Waiting to destroy cluster (yes/no): " choice
     case $choice in
         [Yy]|[Yy][Ee][Ss])
-            vagrant destroy -f
+            LUSTER_SIZE=3 vagrant destroy -f
             break
             ;;
         [Nn]|[Nn][Oo])
