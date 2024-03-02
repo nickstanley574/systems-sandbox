@@ -106,13 +106,14 @@ else
         CLUSTER_SIZE=1
     fi
 
+    touch hashistack.log
     # Check the value of CLUSTER_SIZE
     if [ "$CLUSTER_SIZE" -eq 1 ]; then
         echo "[$script_name] CLUSTER_SIZE is 1"
-        vagrant up hashistack1
+        vagrant up hashistack1 | tee -a hashistack.log
     elif [ "$CLUSTER_SIZE" -eq 3 ]; then
         echo "[$script_name] CLUSTER_SIZE is 3"
-        vagrant up hashistack1 hashistack2 hashistack3
+        vagrant up hashistack1 hashistack2 hashistack3 | tee -a hashistack.log
     else
         echo "[$script_name] ERROR: CLUSTER_SIZE must be either 1 or 3."
         exit 1
