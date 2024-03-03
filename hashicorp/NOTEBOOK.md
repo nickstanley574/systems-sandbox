@@ -340,7 +340,7 @@
 
     - Optional JSON output is very useful for scripts: `vault kv get -mount=secret -format=json hello | jq -r .data.data.excited`
 
-    - Delete a secret: `vault kv delete -mount=secret hello` 
+    - Delete a secret: `vault kv delete -mount=secret hello`
 
     - ```
       vault kv get -mount=secret hello
@@ -358,7 +358,7 @@
       version            2
       ```
 
-    - The output only displays the metadata with `deletion_time`. It does not display the data itself once it is deleted. Notice that the `destroyed` parameter is `false` which means that you can recover the deleted data if the deletion was unintentional. 
+    - The output only displays the metadata with `deletion_time`. It does not display the data itself once it is deleted. Notice that the `destroyed` parameter is `false` which means that you can recover the deleted data if the deletion was unintentional.
 
     - `vault kv undelete -mount=secret -versions=2 hello`
 
@@ -429,7 +429,7 @@
 
     - `vault login -method=github`
 
-- [Policies](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-policies)
+- [hashicorp.com | Policies](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-policies)
 
     -   ```
         # Dev servers have version 2 of KV secrets engine mounted by default, so will
@@ -455,7 +455,7 @@
 
     - **Associate Policies to Auth Methods** - You can configure auth methods to automatically assign a set of policies to tokens created by authenticating with certain auth methods. The way this is done differs depending on the related auth method, but typically involves mapping a role to policies or mapping identities or groups to policies.
 
-- [Deploy Vault](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-deploy)
+- [hashicorp.com | Deploy Vault](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-deploy)
 
     - Up to this point, you interacted with the "dev" server, which automatically unseals Vault, sets up in-memory storage, etc. It is important to learn how to deploy Vault into a real environment.
 
@@ -495,18 +495,6 @@
 
         - `vault server -config=config.hcl`
 
-        -   ```
-            Error initializing core: Failed to lock memory: cannot allocate memory
-
-            This usually means that the mlock syscall is not available.
-            Vault uses mlock to prevent memory from being swapped to
-            disk. This requires root privileges as well as a machine
-            that supports mlock.Please enable mlock on your system or
-            disable Vault from using it. To disable Vault from using it,
-            set the `disable_mlock` configuration option in your configuration
-            file.
-            ```
-
         - **If you get a warning message about mlock not being supported, that is okay. However, for maximum security you should run Vault on a system that supports mlock.** 
 
     - Initializing the Vault
@@ -543,11 +531,11 @@
 
         - As a root user, you can reseal the Vault with vault operator seal. A single operator is allowed to do this. This lets a single operator lock down the Vault in an emergency without consulting other operators.
 
-- [Using the HTTP APIs with authentication](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-apis)
+- [hashicorp.com | Using the HTTP APIs with authentication](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-apis)
 
     - All of Vault's capabilities are accessible via the HTTP API in addition to the CLI. In fact, most calls from the CLI actually invoke the HTTP API. In some cases, Vault features are not available via the CLI and can only be accessed via the HTTP API.
 
-- [Vault UI](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-ui)
+- [hashicorp.com | Vault UI](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-ui)
 
     -  When you operate Vault in development mode the UI is automatically enabled, but when Vault is running outside of development mode, the UI is not activated by default.
 
@@ -561,3 +549,95 @@
         ```
 
     - In this case, the UI is accessible at the following URL from any machine on the subnet (provided no network firewalls are in place): https://10.0.1.35:8200/ui It is also accessible at any DNS entry that resolves to that IP address, such as the Consul service address (if using Consul): https://vault.service.consul:8200/ui
+
+
+
+- [stackoverflow.com- High Available Hashicorp Vault Cluster Installation on VMWare](https://stackoverflow.com/questions/75590758/high-available-hashicorp-vault-cluster-installation-on-vmware) - [ixe013](https://stackoverflow.com/users/591064/ixe013)
+
+    - Keep in mind that with the open source solution, only the primary node will process requests. Other nodes will forward requests they receive to the primary node. OSS Vault also limits your auto-unseal options.
+
+    - For every node you have:
+
+        1. Configure Vault to run as a service on your virtual machine.
+
+        2. Make sure each node can reach its peers on their `cluster_addr` and that they can reach the load-balancer.
+
+        3. All nodes should be configured the same, with Raft storage and the same seal configuration.
+
+        4. Configure your load balancer to poll sys/health so that it always points to the leader node.
+
+        5. Set `VAULT_ADDR` to point to the local node, on each node. Having `VAULT_ADDR=http://localhost:8200` in `/etc/environment` is one way to do that, ymmv.
+
+
+
+- [hashicorp.com | Vault with integrated storage reference architecture](https://developer.hashicorp.com/vault/tutorials/day-one-raft/raft-reference-architecture)
+
+    - Recommended architecture: 5 Vault Servers across 3 AZs behind a LB 1 in active mode 4 in standby
+
+    - With five nodes in the Vault cluster distributed between three availability zones, this architecture can withstand the loss of two nodes from within the cluster or the loss of an entire availability zone.
+
+    - When using Integrated Storage the Vault servers should have a relatively high-performance hard disk subsystem. If many secrets are being generated or rotated frequently, this information will need to flush to disk often and the use of slower storage systems will significantly impact performance.
+
+    - **In addition, Hashicorp strongly recommends configuring Vault with audit logging enabled. The impact of the additional storage I/O from audit logging will vary depending on your particular pattern of requests. For best performance, audit logs should be written to a separate disk.**
+
+    - In order for cluster members to stay properly in sync, network latency between availability zones should be less than eight milliseconds (8 ms).
+
+    - From client machines to the load balancer, and from the load balancer to the Vault servers, standard HTTPS TLS encryption can be used.
+
+    - For communication between Vault servers (port 8201 by default) including Raft gossip, data replication, and request forwarding traffic, Vault automatically negotiates an mTLS connection when new servers join the cluster initially via the API address port (8200 by default).
+
+    - To monitor the health of Vault cluster nodes, the load balancer should be configured to poll the `/v1/sys/health` API endpoint to detect the status of the node and direct traffic accordingly.
+
+    - For scaling the performance of your Vault cluster, there are two factors to consider. Adding additional members to the Vault cluster will not increase performance for any activity that triggers writes to the Vault storage backend. However, for Vault Enterprise customers, adding performance standby nodes can provide horizontal scalability for read requests within a Vault cluster.
+
+    - **Node failure** - The Integrated Storage backend for Vault allows for individual node failure by replicating all data between each node of the cluster. If the leader node fails, the remaining cluster members will elect a new leader following the Raft protocol.
+
+- [hashicorp.com | High availability mode (HA)](https://developer.hashicorp.com/vault/docs/concepts/ha)
+
+    - [High availability parameters](https://developer.hashicorp.com/vault/docs/configuration#high-availability-parameters)
+
+        - `api_addr (string: "")` – Specifies the address (full URL) to advertise to other Vault servers in the cluster for client redirection.
+
+        - `cluster_addr (string: "")` – Specifies the address to advertise to other Vault servers in the cluster for request forwarding.
+
+        - `disable_clustering (bool: false)` – Specifies whether clustering features such as request forwarding are enabled. Setting this to true on one Vault node will disable these features only when that node is the active node. This parameter cannot be set to `true` if `raft` is the storage type.
+
+    - To be highly available, one of the Vault server nodes grabs a lock within the data store. The successful server node then becomes the active node; all other nodes become standby nodes. At this point, if the standby nodes receive a request, they will either forward the request or redirect the client depending on the current configuration and state of the cluster.  Due to this architecture, HA does not enable increased scalability. 
+
+    - Both methods of request handling rely on the active node advertising information about itself to the other nodes.
+
+    - Server-to-Server communication
+
+        - Request forwarding - If request forwarding is enabled (turned on by default in 0.6.2), clients can still force the older/fallback redirection behavior (see below) if desired by setting the X-Vault-No-Request-Forwarding header to any non-empty value.
+
+        - Client redirection
+
+            - If `X-Vault-No-Request-Forwarding` header in the request is set to a non-empty value, the standby nodes will redirect the client using a 307 status code to the active node's redirect address.
+
+            - Some HA data store drivers can autodetect the redirect address, but it is often necessary to configure it manually via a top-level value in the configuration file. The key for this value is api_addr and the value can also be specified by the VAULT_API_ADDR environment variable, which takes precedence.
+
+            - What the api_addr value should be set to depends on how Vault is set up. There are two common scenarios: Vault servers accessed directly by clients, and Vault servers accessed via a load balancer. **In both cases, the api_addr should be a full URL including scheme (http/https), not simply an IP address and port.**
+
+        - Direct access - When clients are able to access Vault directly, the `api_addr` for each node should be that node's address. Then node A would set its api_addr to https://a.vault.mycompany.com:8200 and node B would set its api_addr to https://b.vault.mycompany.com:8200.
+
+
+    - Behind load balancers
+
+        - Sometimes clients use load balancers as an initial method to access one of the Vault servers, but actually have direct access to each Vault node. In this case, the Vault servers should actually be set up as described in the above section, since for redirection purposes the clients have direct access.
+
+        - However, if the only access to the Vault servers is via the load balancer, the `api_addr` on each node **should be the same**: the address of the load balancer. Clients that reach a standby node will be redirected back to the load balancer; at that point hopefully the load balancer's configuration will have been updated to know the address of the current leader. **This can cause a redirect loop and as such is not a recommended setup when it can be avoided.**
+
+- [hashicorp.com | CLI operator raft](https://developer.hashicorp.com/vault/docs/commands/operator/raft)
+
+    - **If raft is used for `storage`, the node must be joined before unsealing and the `leader-api-addr` argument must be provided.**
+
+    - **If raft is used for `ha_storage`, the node must be first unsealed before joining and the `leader-api-addr` must not be provided.**
+
+    - Params - `-retry` (bool: false) - Continuously retry joining the Raft cluster upon failures. The default is false.
+
+
+- [blog.yasithab.com | Setup HashiCorp Vault HA Cluster](https://blog.yasithab.com/centos/hashicorp-vault-ha-cluster-with-raft-and-aws-kms-on-centos-7/)
+    - NOTE keep alive example
+
+
+
