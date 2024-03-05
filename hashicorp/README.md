@@ -5,11 +5,11 @@
 **Current State**: Core Nomad TLS secured install completed.
 
 **TODO**
-- Split Nomad install into its own script for DRYness
-- Enable ACL for Nomad
 - Setup Clients
 - Consul
 - Vault
+- Enable Firewall
+- Selinux ... maybe
 - Write guide once all above is complete.
 - Write install guide
 - Add Architecture Diagram

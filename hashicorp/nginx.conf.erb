@@ -21,16 +21,16 @@ http {
 
   server {
     listen 443 ssl;
-    server_name hashistack.global;
+    server_name hashistack.vagrant-local;
 
-    ssl_certificate /etc/nomad.d/global-cli-nomad.pem;
-    ssl_certificate_key /etc/nomad.d/global-cli-nomad-key.pem;
+    ssl_certificate /etc/nomad.d/vagrant-local-cli-nomad.pem;
+    ssl_certificate_key /etc/nomad.d/vagrant-local-cli-nomad-key.pem;
 
     location / {
       proxy_pass https://hashistack;
 
-      proxy_ssl_certificate /etc/nomad.d/global-cli-nomad.pem;
-      proxy_ssl_certificate_key /etc/nomad.d/global-cli-nomad-key.pem;
+      proxy_ssl_certificate /etc/nomad.d/vagrant-local-cli-nomad.pem;
+      proxy_ssl_certificate_key /etc/nomad.d/vagrant-local-cli-nomad-key.pem;
       proxy_ssl_trusted_certificate /etc/nomad.d/nomad-agent-ca.pem;
 
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

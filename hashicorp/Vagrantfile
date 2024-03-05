@@ -29,10 +29,12 @@ else
 
   CLUSTER_SIZE = Integer(ENV['CLUSTER_SIZE'])
 
+  DOMAIN='vagrant-local'
+
   servers = [
-    { :name => "hashistack1.global", :ip => "192.168.22.10" },
-    { :name => "hashistack2.global", :ip => "192.168.22.11" },
-    { :name => "hashistack3.global", :ip => "192.168.22.12" },
+    { :name => "hashistack1.#{DOMAIN}", :ip => "192.168.22.10" },
+    { :name => "hashistack2.#{DOMAIN}", :ip => "192.168.22.11" },
+    { :name => "hashistack3.#{DOMAIN}", :ip => "192.168.22.12" },
   ]
 
   servers = servers.first(CLUSTER_SIZE)

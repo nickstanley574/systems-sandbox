@@ -32,42 +32,40 @@ done
 
 vagrant --version
 
+region=vagrant-local
+
 cert_types=(
     # Nomad CA
     "nomad-agent-ca-key.pem"
     "nomad-agent-ca.pem"
     # Nomad Server
-    "global-server-nomad-key.pem"
-    "global-server-nomad.pem"
+    "$region-server-nomad-key.pem"
+    "$region-server-nomad.pem"
     # Nomad Client
-    "global-client-nomad-key.pem"
-    "global-client-nomad.pem"
+    "$region-client-nomad-key.pem"
+    "$region-client-nomad.pem"
     # Nomad CLI
-    "global-cli-nomad-key.pem"
-    "global-cli-nomad.pem"
+    "$region-cli-nomad-key.pem"
+    "$region-cli-nomad.pem"
 )
+
+CERT_VM_NAME=nomad-cert-creator
+
 
 if [ "$create_nomad_certs" = true ]; then
 
     echo "[$script_name] Creating Nomad certificates..."
 
-    CERT_VM_NAME=nomad-cert-creator
-
     CERT_CREATION=true vagrant up $CERT_VM_NAME
 
     CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "pwd; ls -al"
 
-    echo "[$script_name] Saving created certs to certificates/"
+    echo "[$script_name] Saving created certs to generated_assets/"
     for cert in "${cert_types[@]}"; do
-        echo "[$script_name] certificates/$cert"
-        CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat $cert" > certificates/$cert
+        echo "[$script_name] generated_assets/$cert"
+        CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat $cert" > generated_assets/$cert
     done
 
-    echo "[$script_name] id_rsa_hashistack"
-    CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat id_rsa_hashistack" > ssh/id_rsa_hashistack
-
-    echo "[$script_name] id_rsa_hashistack.pub"
-    CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat id_rsa_hashistack.pub" > ssh/id_rsa_hashistack.pub
 
 
     # When running 'vagrant ssh -c "sudo cat id_rsa_hashistack,"' it adds a
@@ -79,7 +77,7 @@ if [ "$create_nomad_certs" = true ]; then
     #
     # The below sed command removes the carriage return.
 
-    sed -i 's/\r//g' ssh/id_rsa_hashistack ssh/id_rsa_hashistack.pub
+    sed -i 's/\r//g' generated_assets/id_rsa_hashistack generated_assets/id_rsa_hashistack.pub
 
     CERT_CREATION=true vagrant destroy $CERT_VM_NAME -f
 
@@ -99,6 +97,7 @@ fi
 
 if [ "$destroy" = true ]; then
     CLUSTER_SIZE=3 vagrant destroy -f
+    CERT_CREATION=true vagrant destroy $CERT_VM_NAME -f
 else
     # Check if the ENV Var CLUSTER_SIZE is set
     if [ -z "$CLUSTER_SIZE" ]; then

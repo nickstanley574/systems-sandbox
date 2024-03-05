@@ -31,27 +31,26 @@ nomad --version
 # out of the init.sh script to allow certs to be copied to host
 if [ "$(hostname)" = "nomad-cert-creator" ]; then
 
-    printf "\n[init.sh] Generate Config Assets Nomad Certs\n"
+    printf "\n\n[init.sh] Generate Config Assets Nomad Certs\n"
 
-    # Generate a Nomad CA
+    printf "\n\n[init.sh] Generate a Nomad CA\n"
     # nomad-agent-ca-key.pem - **CA private key. Keep safe.**
     # nomad-agent-ca.pem - CA public certificate.
     nomad tls ca create
 
-    # Generate a Nomad server certificate and private key
-    # global-server-nomad.pem global-server-nomad-key.pem
-    nomad tls cert create -server -region global -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
+    printf "\n\n[init.sh] Generate a Nomad server certificate and private key\n"
+    nomad tls cert create -server -region vagrant-local -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
 
-    # Generate Nomad client certificate and private key
-    # global-client-nomad-key.pem  global-client-nomad.pem
-    nomad tls cert create -client
+    printf "\n\n[init.sh] Generate Nomad client certificate and private key\n"
+    nomad tls cert create -client -region vagrant-local
 
-    # Generate Nomad CLI certificate and private key
-    # global-cli-nomad-key.pem global-cli-nomad.pem
-    nomad tls cert create -cli -additional-dnsname hashistack.vagrant.local
+    printf "\n\n[init.sh] Generate Nomad CLI certificate and private key\n"
+    nomad tls cert create -cli -region vagrant-local -additional-dnsname hashistack.vagrant-local
 
+    printf "\n\n[init.sh] Generate hashistack ssh keypair\n"
     ssh-keygen -t rsa -b 2048 -C "hashistack" -f "id_rsa_hashistack"
 
+    printf "\n\n[init.sh] Created Files:\n"
     ls -al
 
     printf "[init.sh] Done."
@@ -64,10 +63,12 @@ apt-get install -y gpg coreutils nginx
 
 printf "\n[init.sh] Create hashistack user"
 
-useradd -m --shell /bin/bash hashistack
+sudo useradd -m -d /home/hashistack -s /bin/bash hashistack
 usermod -aG nomad hashistack
+mkdir -p /home/hashistack/.ssh/
 
-mv -v /vagrant/ssh /home/hashistack/.ssh
+mv -v /vagrant/generated_assets/id_rsa_hashistack /home/hashistack/.ssh/id_rsa_hashistack
+mv -v /vagrant/generated_assets/id_rsa_hashistack.pub /home/hashistack/.ssh/id_rsa_hashistack.pub
 
 cat /home/hashistack/.ssh/id_rsa_hashistack.pub > /home/hashistack/.ssh/authorized_keys
 
@@ -85,7 +86,7 @@ rm -rf /etc/nomad.d/*
 mv -v /vagrant/generated_assets/nomad-server.hcl /etc/nomad.d/
 
 # Move nomad certificates to /etc/nomad.d/
-mv -v /vagrant/certificates/*.pem /etc/nomad.d/
+mv -v /vagrant/generated_assets/*.pem /etc/nomad.d/
 
 mv -v /vagrant/nomad-cli.env /etc/nomad.d/
 
@@ -112,7 +113,7 @@ systemctl daemon-reload
 systemctl enable --now nomad
 
 # Give nomad time to finshing starting
-sleep 8
+sleep 20
 
 systemctl status nomad
 
