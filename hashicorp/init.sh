@@ -1,14 +1,11 @@
 #/bin/bash
 set -xe
 
-nomad_vagrant_ipaddress=$1
-
-printf "\n=== Install Nomad ===\n"
+printf "\n[init.sh] Add the official HashiCorp Linux repository"
 
 # Add the HashiCorp GPG key.
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 
-# Add the official HashiCorp Linux repository.
 GPG_KEY_FILE="/usr/share/keyrings/hashicorp-archive-keyring.gpg"
 REPO_URL="https://apt.releases.hashicorp.com"
 RELEASE_CODENAME=$(lsb_release -cs)
@@ -17,6 +14,8 @@ echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
 # Update the package index.
 apt-get update
+
+printf "\n[init.sh] Install Nomad"
 
 # Install the Nomad package.
 apt-get install -y nomad
@@ -123,21 +122,17 @@ if [ "$(hostname)" = "hashistack1" ]; then
     source /etc/nomad.d/nomad-cli.env
 
     MAX_ATTEMPTS=5      # Maximum number of bootstrap attempts
-    SLEEP_DURATION=6    # Sleep duration between retries in seconds
 
-    attempt=1
-
-    while [ $attempt -le $MAX_ATTEMPTS ]; do
+    for ((attempt=1; i<=$MAX_ATTEMPTS; i++)); do
 
         # Attempt Nomad ACL bootstrap
-        nomad acl bootstrap > /etc/nomad.d/bootstrap.token 2>&1
+        { set +e; nomad acl bootstrap > /etc/nomad.d/bootstrap.token 2>&1; }
 
         # Check if bootstrap failed due to "No cluster leader" retry if true
         if grep -q "No cluster leader" "/etc/nomad.d/bootstrap.token"; then
-            echo "[init.sh] No cluster leader. Retrying in ${SLEEP_DURATION}s (Attempt $attempt/$MAX_ATTEMPTS)"
-            sleep $SLEEP_DURATION
+            echo "[init.sh] No nomad leader. Retrying ($attempt/$MAX_ATTEMPTS)... "
+            sleep 8
         else
-            # If no "No cluster leader" is found, assume ACL Bootstrap is complete and break the loop
             echo "[init.sh] Nomad ACL Bootstrap Complete" && break
         fi
 
