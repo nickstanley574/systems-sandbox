@@ -1,0 +1,5 @@
+*.secret
+certs/*
+ca/*
+temp/*
+ca-root-keys/*
