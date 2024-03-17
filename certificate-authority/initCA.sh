@@ -206,7 +206,7 @@ EOF
 openssl req -new -key certs/$CA_NAME.key -sha256 -config $EXTFILE -out $CSRFIE
 
 # Extract and display the DNS information from the CSR
-openssl req -in $CSRFIE -noout -text | -e DNS -e GMT -e "Issuer" | sed 's/^[ \t]*//'
+openssl req -in $CSRFIE -noout -text | grep -e DNS -e GMT -e "Issuer" | sed 's/^[ \t]*//'
 
 
 

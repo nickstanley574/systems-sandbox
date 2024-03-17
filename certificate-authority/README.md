@@ -3,7 +3,6 @@
 This script automates the generation of a root Certificate Authority (CA) key and certificate, as well as generating a Certificate Signing Request (CSR) and signing a certificate using the CA key for the System Sandbox Project.
 
 ```
-nick ~/workspace/systems-sandbox/certificate-authority (master)
 $ ./initCA.sh
 
 >>> Init Variables <<<
@@ -32,8 +31,8 @@ V3EXT:       ./temp/subjectAltName.ext
 
 >>> Create Root CA private key and Certificate <<<
 Issuer: C = US, ST = Denial, L = Chicago, O = Systems Sandbox Local, CN = wildcard.sandbox.local
-Not Before: Mar 17 15:07:45 2024 GMT
-Not After : Mar 16 15:07:45 2028 GMT
+Not Before: Mar 17 15:12:09 2024 GMT
+Not After : Mar 16 15:12:09 2028 GMT
 
 Import certs/sandboxCA.crt into your preferred browser:
    - FireFox: Tools > Options > Advanced > Certificates: View Certificates > Import
@@ -47,7 +46,7 @@ Continue? (yes/no)
 yes
 
 >>> Generate 'wildcard.sandbox.local' Private Key and Certifican Signing Request (CSR) <<<
-./initCA.sh: line 209: -e: command not found
+DNS:*.sandbox.local
 
 >>> Sign CSR with CA ca-root-keys/sandboxCA.key <<<
 Certificate request self-signature ok
@@ -55,8 +54,8 @@ subject=CN = wildcard.sandbox.local, C = US, L = Chicago, O = Systems Sandbox Lo
 
 >>> Validate Cert <<<
 Issuer: C = US, ST = Denial, L = Chicago, O = Systems Sandbox Local, CN = wildcard.sandbox.local
-Not Before: Mar 17 15:07:52 2024 GMT
-Not After : Mar 17 15:07:52 2025 GMT
+Not Before: Mar 17 15:12:11 2024 GMT
+Not After : Mar 17 15:12:11 2025 GMT
 DNS:*.sandbox.local
 certs/wildcard.sandbox.local.crt: OK
 .
