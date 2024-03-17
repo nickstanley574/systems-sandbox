@@ -32,7 +32,7 @@ done
 
 vagrant --version
 
-region=vagrant-local
+region=local
 
 cert_types=(
     # Nomad CA
@@ -61,6 +61,7 @@ if [ "$create_nomad_certs" = true ]; then
     CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "pwd; ls -al"
 
     echo "[$script_name] Saving created certs to generated_assets/"
+
     for cert in "${cert_types[@]}"; do
         echo "[$script_name] generated_assets/$cert"
         CERT_CREATION=true vagrant ssh $CERT_VM_NAME -c "sudo cat $cert" > generated_assets/$cert

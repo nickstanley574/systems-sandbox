@@ -12,6 +12,8 @@ RELEASE_CODENAME=$(lsb_release -cs)
 REPO_LINE="deb [signed-by=${GPG_KEY_FILE}] ${REPO_URL} ${RELEASE_CODENAME} main"
 echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
+DOMAIN="sandbox.local"
+
 # Update the package index.
 apt-get update
 
@@ -26,6 +28,8 @@ nomad -autocomplete-install
 # Display the installed Nomad version.
 nomad --version
 
+
+
 # When nomad-cert-creator make the nomad certificates nthen exit 0
 # out of the init.sh script to allow certs to be copied to host
 if [ "$(hostname)" = "nomad-cert-creator" ]; then
@@ -38,13 +42,13 @@ if [ "$(hostname)" = "nomad-cert-creator" ]; then
     nomad tls ca create
 
     printf "\n\n[init.sh] Generate a Nomad server certificate and private key\n"
-    nomad tls cert create -server -region vagrant-local -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
+    nomad tls cert create -server -region local -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
 
     printf "\n\n[init.sh] Generate Nomad client certificate and private key\n"
-    nomad tls cert create -client -region vagrant-local
+    nomad tls cert create -client -region local
 
     printf "\n\n[init.sh] Generate Nomad CLI certificate and private key\n"
-    nomad tls cert create -cli -region vagrant-local -additional-dnsname hashistack.vagrant-local
+    nomad tls cert create -cli -region local -additional-dnsname hashistack.$DOMAIN
 
     printf "\n\n[init.sh] Generate hashistack ssh keypair\n"
     ssh-keygen -t rsa -b 2048 -C "hashistack" -f "id_rsa_hashistack"
@@ -95,8 +99,6 @@ chown -R nomad:nomad /etc/nomad.d/*
 # Adjust permissions
 chmod  770 /etc/nomad.d/
 chmod -R 640 /etc/nomad.d/*
-
-ls -al /etc/nomad.d/
 
 # Create an override configuration file for the Nomad service.
 # This sets the User and Group for the Nomad service to 'nomad'.

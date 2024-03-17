@@ -29,7 +29,7 @@ else
 
   CLUSTER_SIZE = Integer(ENV['CLUSTER_SIZE'])
 
-  DOMAIN='vagrant-local'
+  DOMAIN='sandbox.local'
 
   servers = [
     { :name => "hashistack1.#{DOMAIN}", :ip => "192.168.22.10" },
