@@ -47,6 +47,10 @@ cert_types=(
     # Nomad CLI
     "$region-cli-nomad-key.pem"
     "$region-cli-nomad.pem"
+    # ssh keys
+    "id_rsa_hashistack"
+    "id_rsa_hashistack.pub"
+
 )
 
 CERT_VM_NAME=nomad-cert-creator
