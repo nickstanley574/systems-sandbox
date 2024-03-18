@@ -69,6 +69,7 @@ else
         end
 
         config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
+        config.vm.synced_folder "../certificate-authority/certs", "/certs", type: "rsync", rsync__exclude: ".git/"
 
         config.vm.provision "shell", keep_color: true, path: "init.sh"
 

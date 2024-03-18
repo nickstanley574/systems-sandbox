@@ -1,6 +1,19 @@
 #/bin/bash
 set -xe
 
+printf "\n[init.sh] Move wildcard.standbox.local certs to /usr/share/ca-certificates"
+
+ls -al /certs
+
+mv /certs/ /usr/share/ca-certificates/systems-sandbox
+
+chown root:root /usr/share/ca-certificates/systems-sandbox/
+chown root:root /usr/share/ca-certificates/systems-sandbox/*
+chmod 755 /usr/share/ca-certificates/systems-sandbox
+chmod 644 /usr/share/ca-certificates/systems-sandbox/*
+
+
+
 printf "\n[init.sh] Add the official HashiCorp Linux repository"
 
 # Add the HashiCorp GPG key.
