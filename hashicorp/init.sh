@@ -15,7 +15,7 @@ echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 DOMAIN="sandbox.local"
 
 # Update the package index.
-apt-get update
+apt-get -qq update
 
 printf "\n[init.sh] Install Nomad"
 
@@ -61,8 +61,10 @@ if [ "$(hostname)" = "nomad-cert-creator" ]; then
     exit 0
 fi
 
+
+
 # Install the required packages.
-apt-get install -y gpg coreutils nginx
+apt-get -qq install -y gpg coreutils nginx jq
 
 printf "\n[init.sh] Create hashistack user"
 
@@ -114,9 +116,13 @@ systemctl daemon-reload
 systemctl enable --now nomad
 
 # Give nomad time to finshing starting
-sleep 20
+sleep 10
+
+journalctl -u nomad --lines=12
 
 systemctl status nomad
+
+
 
 # Create Managment Token on Each Nomad Server
 if [ "$(hostname)" = "hashistack1" ]; then
@@ -125,7 +131,8 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     MAX_ATTEMPTS=5      # Maximum number of bootstrap attempts
 
-    for ((attempt=1; i<=$MAX_ATTEMPTS; i++)); do
+    set +x
+    for ((attempt=1; attempt<=$MAX_ATTEMPTS; attempt++)); do
 
         # Attempt Nomad ACL bootstrap
         { set +e; nomad acl bootstrap > /etc/nomad.d/bootstrap.token 2>&1; }
@@ -133,16 +140,16 @@ if [ "$(hostname)" = "hashistack1" ]; then
         # Check if bootstrap failed due to "No cluster leader" retry if true
         if grep -q "No cluster leader" "/etc/nomad.d/bootstrap.token"; then
             echo "[init.sh] No nomad leader. Retrying ($attempt/$MAX_ATTEMPTS)... "
-            sleep 8
+            sleep 5
         else
             echo "[init.sh] Nomad ACL Bootstrap Complete" && break
         fi
 
-        ((attempt++))
     done
 
     # Check if maximum attempts are reached without success
     [ $attempt -gt $MAX_ATTEMPTS ] && { echo "Maximum number of attempts reached. Exiting with an error."; exit 1; }
+    set -x
 
     # Set owner and permissions for the bootstrap token file
     chmod -R 600 /etc/nomad.d/bootstrap.token
@@ -178,6 +185,10 @@ mv /vagrant/generated_assets/nginx.conf /etc/nginx/nginx.conf
 chown root:root /etc/nginx/nginx.conf
 chmod 644 /etc/nginx/nginx.conf
 
-systemctl enable --now nginx
+systemctl enable nginx
+systemctl restart nginx
+
+journalctl -u nginx --lines=12
+
 systemctl status nginx
 
