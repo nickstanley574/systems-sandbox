@@ -1,0 +1,34 @@
+# Full configuration options can be found at https://developer.hashicorp.com/vault/docs/configuration
+
+cluster_name = "sandbox-local"
+ui = true
+log_level = "info"
+api_addr = "https:/<%= hostname %>:8200"
+cluster_addr = "https://<%= hostname %>:8201"
+
+listener "tcp" {
+   address     = "0.0.0.0:8200"
+   tls_disable = false
+   tls_client_ca_file = "/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt"
+   tls_cert_file      = "/usr/share/ca-certificates/systems-sandbox/wildcard.sandbox.local.crt"
+   tls_key_file       = "/usr/share/ca-certificates/systems-sandbox/wildcard.sandbox.local.key"
+
+}
+
+storage "raft" {
+
+  node_id = "<%= node_id %>"
+  path = "/opt/vault/data"
+
+<% neighbor_servers.each do |server| -%>
+   retry_join {
+      leader_api_addr = "https://<%= server %>:8200"
+      leader_ca_cert_file     = "/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt"
+      leader_client_cert_file = "/usr/share/ca-certificates/systems-sandbox/wildcard.sandbox.local.crt"
+      leader_client_key_file  = "/usr/share/ca-certificates/systems-sandbox/wildcard.sandbox.local.key"
+   }
+
+<% end -%>
+}
+
+
