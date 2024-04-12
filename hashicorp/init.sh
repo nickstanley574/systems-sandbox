@@ -30,6 +30,8 @@ DOMAIN="sandbox.local"
 # Update the package index.
 apt-get -qq update
 
+
+
 printf "\n[init.sh] Install Nomad"
 
 # Install the Nomad package.
@@ -201,7 +203,70 @@ chmod 644 /etc/nginx/nginx.conf
 systemctl enable nginx
 systemctl restart nginx
 
+sleep 5
+
 journalctl -u nginx --lines=12
 
 systemctl status nginx
 
+
+
+######################################
+#####       Install Vault        #####
+######################################
+
+printf "\n[init.sh] Config Vault"
+
+apt-get -qq install -y vault
+vault -autocomplete-install
+
+current_host=$(hostname)
+
+VAULT_DIR=/etc/vault.d
+VAULT_CONFIG_FILE=$VAULT_DIR/vault.hcl
+
+mv /vagrant/generated_assets/vault-$current_host.hcl $VAULT_CONFIG_FILE
+
+chown -R vault:vault $VAULT_DIR/*
+chmod -R 640 $VAULT_DIR/*
+
+set +e
+systemctl enable --now vault.service
+
+export VAULT_CACERT=/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt
+
+neighbor_servers_addresses=$(grep leader_api_addr $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr '\n' ' ')
+
+if [ "$(hostname)" = "hashistack1" ]; then
+
+    # TODO: wait until other instances are up vs sleep
+    sleep 60
+
+    export VAULT_ADDR="https://hashistack1.$DOMAIN:8200"
+
+    vault operator init -key-shares=1 -key-threshold=1 -format=json > /etc/vault.d/unseal_keys.json
+
+    chmod -R 400 /etc/vault.d/unseal_keys.json
+
+    export VAULT_TOKEN=$(jq -r '.root_token' "/etc/vault.d/unseal_keys.json")
+
+    unseal_keys_hex=$(jq -r '.unseal_keys_hex[0]' "/etc/vault.d/unseal_keys.json")
+
+    vault operator unseal $unseal_keys_hex
+
+    sleep 20
+
+    # why the sleep? avoid 'Vault is not initialized' error
+
+    for address in $neighbor_servers_addresses; do
+        curl -s --cacert $VAULT_CACERT -X PUT --data "{\"key\": \"$unseal_keys_hex\"}" $address/v1/sys/unseal | jq
+    done
+
+    sleep 30
+
+    printf "\n\n"
+
+    vault operator raft list-peers
+
+    printf "\nroot_token: $VAULT_TOKEN\n\n"
+fi

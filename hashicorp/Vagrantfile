@@ -50,6 +50,20 @@ else
     File.write(output_file, result)
   end
 
+  template_name = 'vault.hcl.erb'
+
+  servers.each do |s|
+    hostname = s[:name]
+    node_id = hostname.split('.')[0]
+
+    # Filter out current server from neighbor_servers
+    neighbor_servers = servers.filter_map { |s| s[:name] unless s[:name] == hostname }
+
+    template = File.read(template_name)
+    result = ERB.new(template, nil, '-').result(binding)
+    File.write("generated_assets/vault-#{node_id}.hcl", result)
+  end
+
   Vagrant.configure("2") do |config|
     (0..CLUSTER_SIZE - 1 ).each do |i|
       config.vm.define "hashistack#{i + 1}" do |config|
