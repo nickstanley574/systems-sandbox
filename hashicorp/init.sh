@@ -215,12 +215,15 @@ systemctl status nginx
 #####       Install Vault        #####
 ######################################
 
-printf "\n[init.sh] Config Vault"
+current_host=$(hostname)
+
+printf "\n\n[init.sh] Config Vault - $current_host\n\n"
 
 apt-get -qq install -y vault
+
 vault -autocomplete-install
 
-current_host=$(hostname)
+export VAULT_CACERT='/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt'
 
 VAULT_DIR=/etc/vault.d
 VAULT_CONFIG_FILE=$VAULT_DIR/vault.hcl
@@ -230,19 +233,37 @@ mv /vagrant/generated_assets/vault-$current_host.hcl $VAULT_CONFIG_FILE
 chown -R vault:vault $VAULT_DIR/*
 chmod -R 640 $VAULT_DIR/*
 
-set +e
+# set +e
 systemctl enable --now vault.service
+sleep 5 # Give vault a little time to start
 
-export VAULT_CACERT=/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt
-
-neighbor_servers_addresses=$(grep leader_api_addr $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr '\n' ' ')
 
 if [ "$(hostname)" = "hashistack1" ]; then
 
-    # TODO: wait until other instances are up vs sleep
-    sleep 60
+    neighbor_servers_addresses=$(grep leader_api_addr $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr '\n' ' ')
 
     export VAULT_ADDR="https://hashistack1.$DOMAIN:8200"
+
+    for address in $neighbor_servers_addresses; do
+
+        max_attempts=5
+        attempt=0
+
+        while [ $attempt -lt $max_attempts ]; do
+
+            attempt=$((attempt + 1))
+
+            response=$(curl -sSL --cacert $VAULT_CACERT -o /dev/null -w "%{http_code}" -I "$address/v1/sys/health")
+
+            # https://developer.hashicorp.com/vault/api-docs/system/health - 501 if not initialized (But running)
+            [[ "$response" == "501" ]] && break
+
+            echo "Attempt $attempt/$max_attempts: Vault is not yet ready, waiting..."
+
+            [ $attempt -lt $max_attempts ] && sleep 5 || { echo "Max attempts reached."; exit 1; }
+        done
+
+    done
 
     vault operator init -key-shares=1 -key-threshold=1 -format=json > /etc/vault.d/unseal_keys.json
 
@@ -254,12 +275,11 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     vault operator unseal $unseal_keys_hex
 
-    sleep 20
-
-    # why the sleep? avoid 'Vault is not initialized' error
+    # Avoid 'Vault is not initialized' error
+    sleep 10
 
     for address in $neighbor_servers_addresses; do
-        curl -s --cacert $VAULT_CACERT -X PUT --data "{\"key\": \"$unseal_keys_hex\"}" $address/v1/sys/unseal | jq
+        curl -s --cacert $VAULT_CACERT -X PUT --data "{\"key\": \"$unseal_keys_hex\"}" $address/v1/sys/unseal
     done
 
     sleep 30
