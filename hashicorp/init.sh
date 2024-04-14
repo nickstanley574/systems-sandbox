@@ -217,7 +217,7 @@ systemctl status nginx
 
 current_host=$(hostname)
 
-printf "\n\n[init.sh] Config Vault - $current_host\n\n"
+printf "\n\n[init.sh] Config Vault\n\n"
 
 apt-get -qq install -y vault
 
@@ -226,6 +226,10 @@ vault -autocomplete-install
 export VAULT_CACERT='/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt'
 
 VAULT_DIR=/etc/vault.d
+
+mkdir $VAULT_DIR/acls
+mv -v /vagrant/acls-vault/* /etc/vault.d/acls/
+
 VAULT_CONFIG_FILE=$VAULT_DIR/vault.hcl
 
 mv /vagrant/generated_assets/vault-$current_host.hcl $VAULT_CONFIG_FILE
@@ -288,5 +292,15 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     vault operator raft list-peers
 
-    printf "\nroot_token: $VAULT_TOKEN\n\n"
+    printf "\n\n"
+
+    # Create Admin Token
+
+    vault policy write admin /etc/vault.d/acls/vault-acl-admin.policy.hcl
+
+    admin_policy_token=$(vault token create -policy=admin -format=json -period=120m | jq -r .auth.client_token)
+
+    printf "\n\n\nadmin_policy_token: $admin_policy_token\n\nroot_token: $VAULT_TOKEN\n\n\n"
+
+
 fi
