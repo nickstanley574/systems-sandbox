@@ -1,7 +1,7 @@
 #/bin/bash
 set -xe
 
-printf "\n[init.sh] Move wildcard.standbox.local certs to /usr/share/ca-certificates"
+printf "\n[init.sh] Move wildcard.standbox.local certs to /usr/share/ca-certificates\n\n"
 
 ls -al /certs
 
@@ -14,7 +14,7 @@ chmod 644 /usr/share/ca-certificates/systems-sandbox/*
 
 
 
-printf "\n[init.sh] Add the official HashiCorp Linux repository"
+printf "\n\n[init.sh] Add the official HashiCorp Linux repository\n\n"
 
 # Add the HashiCorp GPG key.
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -25,14 +25,12 @@ RELEASE_CODENAME=$(lsb_release -cs)
 REPO_LINE="deb [signed-by=${GPG_KEY_FILE}] ${REPO_URL} ${RELEASE_CODENAME} main"
 echo "${REPO_LINE}" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
-DOMAIN="sandbox.local"
-
 # Update the package index.
 apt-get -qq update
 
 
 
-printf "\n[init.sh] Install Nomad"
+printf "\n\n[init.sh] Install Nomad\n\n"
 
 # Install the Nomad package.
 apt-get install -y nomad
@@ -49,29 +47,31 @@ nomad --version
 # out of the init.sh script to allow certs to be copied to host
 if [ "$(hostname)" = "nomad-cert-creator" ]; then
 
-    printf "\n\n[init.sh] Generate Config Assets Nomad Certs\n"
+    DOMAIN="sandbox.local"
 
-    printf "\n\n[init.sh] Generate a Nomad CA\n"
+    printf "\n\n[init.sh] Generate Config Assets Nomad Certs\n\n"
+
+    printf "\n\n[init.sh] Generate a Nomad CA\n\n"
     # nomad-agent-ca-key.pem - **CA private key. Keep safe.**
     # nomad-agent-ca.pem - CA public certificate.
     nomad tls ca create
 
-    printf "\n\n[init.sh] Generate a Nomad server certificate and private key\n"
+    printf "\n\n[init.sh] Generate a Nomad server certificate and private key\n\n"
     nomad tls cert create -server -region local -additional-ipaddress 0.0.0.0 -additional-ipaddress 192.168.22.10
 
-    printf "\n\n[init.sh] Generate Nomad client certificate and private key\n"
+    printf "\n\n[init.sh] Generate Nomad client certificate and private key\n\n"
     nomad tls cert create -client -region local
 
-    printf "\n\n[init.sh] Generate Nomad CLI certificate and private key\n"
+    printf "\n\n[init.sh] Generate Nomad CLI certificate and private key\n\n"
     nomad tls cert create -cli -region local -additional-dnsname hashistack.$DOMAIN
 
-    printf "\n\n[init.sh] Generate hashistack ssh keypair\n"
+    printf "\n\n[init.sh] Generate hashistack ssh keypair\n\n"
     ssh-keygen -t rsa -b 2048 -C "hashistack" -f "id_rsa_hashistack"
 
-    printf "\n\n[init.sh] Created Files:\n"
+    printf "\n\n[init.sh] Created Files:\n\n"
     ls -al
 
-    printf "[init.sh] Done."
+    printf "\n[init.sh] Done.\n"
 
     exit 0
 fi
@@ -81,7 +81,7 @@ fi
 # Install the required packages.
 apt-get -qq install -y gpg coreutils nginx jq
 
-printf "\n[init.sh] Create hashistack user"
+printf "\n\n[init.sh] Create hashistack user\n\n"
 
 sudo useradd -m -d /home/hashistack -s /bin/bash hashistack
 usermod -aG nomad hashistack
@@ -146,7 +146,6 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     MAX_ATTEMPTS=5      # Maximum number of bootstrap attempts
 
-    set +x
     for ((attempt=1; attempt<=$MAX_ATTEMPTS; attempt++)); do
 
         # Attempt Nomad ACL bootstrap
@@ -164,7 +163,6 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     # Check if maximum attempts are reached without success
     [ $attempt -gt $MAX_ATTEMPTS ] && { echo "Maximum number of attempts reached. Exiting with an error."; exit 1; }
-    set -x
 
     # Set owner and permissions for the bootstrap token file
     chmod -R 600 /etc/nomad.d/bootstrap.token
@@ -175,12 +173,14 @@ if [ "$(hostname)" = "hashistack1" ]; then
     # Get the list of Nomad server members
     nomad_servers=$(nomad server members | awk 'NR>1 {print $1}')
 
-    for s in $nomad_servers; do
+    for host in $nomad_servers; do
+
         # Add host key to known_hosts file for hashistack user
-        sudo -u hashistack bash -c "ssh-keyscan -H $s >> /home/hashistack/.ssh/known_hosts"
+        sudo -u hashistack bash -c "ssh-keyscan -H $host >> /home/hashistack/.ssh/known_hosts"
 
         # Copy bootstrap token to remote host for hashistack user using scp
-        sudo -u hashistack bash -c "scp -i /home/hashistack/.ssh/id_rsa_hashistack /etc/nomad.d/bootstrap.token hashistack@$s:/etc/nomad.d/bootstrap.token"
+        sudo -u hashistack bash -c "scp -i /home/hashistack/.ssh/id_rsa_hashistack /etc/nomad.d/bootstrap.token hashistack@$host:/etc/nomad.d/bootstrap.token"
+
     done
 
     # Move nomad acl polices to /etc/nomad.d/
@@ -246,7 +246,7 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     neighbor_servers_addresses=$(grep leader_api_addr $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr '\n' ' ')
 
-    export VAULT_ADDR="https://hashistack1.$DOMAIN:8200"
+    export VAULT_ADDR=$(grep -w api_addr.* $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr -d '\n')
 
     for address in $neighbor_servers_addresses; do
 
