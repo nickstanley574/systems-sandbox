@@ -219,34 +219,31 @@ current_host=$(hostname)
 
 printf "\n\n[init.sh] Config Vault\n\n"
 
+export VAULT_CACERT='/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt'
+export VAULT_DIR=/etc/vault.d
+
+VAULT_CONFIG_FILE=$VAULT_DIR/vault.hcl
+UNSEAL_FILE=/etc/vault.d/unseal_keys.json
+
 apt-get -qq install -y vault
 
 vault -autocomplete-install
 
-export VAULT_CACERT='/usr/share/ca-certificates/systems-sandbox/sandboxCA.crt'
-
-VAULT_DIR=/etc/vault.d
-
 mkdir $VAULT_DIR/acls
 mv -v /vagrant/acls-vault/* /etc/vault.d/acls/
-
-VAULT_CONFIG_FILE=$VAULT_DIR/vault.hcl
-
 mv /vagrant/generated_assets/vault-$current_host.hcl $VAULT_CONFIG_FILE
+
+export VAULT_ADDR=$(grep -w api_addr.* $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr -d '\n')
 
 chown -R vault:vault $VAULT_DIR/*
 chmod -R 640 $VAULT_DIR/*
 
-# set +e
 systemctl enable --now vault.service
-sleep 5 # Give vault a little time to start
-
+sleep 10 # Give vault a little time to start
 
 if [ "$(hostname)" = "hashistack1" ]; then
 
     neighbor_servers_addresses=$(grep leader_api_addr $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr '\n' ' ')
-
-    export VAULT_ADDR=$(grep -w api_addr.* $VAULT_CONFIG_FILE | awk -F '"' '{print $2}' | tr -d '\n')
 
     for address in $neighbor_servers_addresses; do
 
@@ -264,18 +261,19 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
             echo "Attempt $attempt/$max_attempts: Vault is not yet ready, waiting..."
 
+            # If the attempt count is less than max attempts,sleep; else, exit.
             [ $attempt -lt $max_attempts ] && sleep 5 || { echo "Max attempts reached."; exit 1; }
         done
 
     done
 
-    vault operator init -key-shares=1 -key-threshold=1 -format=json > /etc/vault.d/unseal_keys.json
+    vault operator init -key-shares=1 -key-threshold=1 -format=json > $UNSEAL_FILE
 
-    chmod -R 400 /etc/vault.d/unseal_keys.json
+    chmod -R 400 $UNSEAL_FILE
 
-    export VAULT_TOKEN=$(jq -r '.root_token' "/etc/vault.d/unseal_keys.json")
+    export VAULT_TOKEN=$(jq -r '.root_token' "$UNSEAL_FILE")
 
-    unseal_keys_hex=$(jq -r '.unseal_keys_hex[0]' "/etc/vault.d/unseal_keys.json")
+    unseal_keys_hex=$(jq -r '.unseal_keys_hex[0]' "$UNSEAL_FILE")
 
     vault operator unseal $unseal_keys_hex
 
@@ -288,11 +286,7 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     sleep 30
 
-    printf "\n\n"
-
     vault operator raft list-peers
-
-    printf "\n\n"
 
     # Create Admin Token
 
@@ -300,7 +294,18 @@ if [ "$(hostname)" = "hashistack1" ]; then
 
     admin_policy_token=$(vault token create -policy=admin -format=json -period=120m | jq -r .auth.client_token)
 
-    printf "\n\n\nadmin_policy_token: $admin_policy_token\n\nroot_token: $VAULT_TOKEN\n\n\n"
+    # Show all needed tokens to user
+    set +x; sleep 2 # Prevent the output from being out of order
+
+    printf "\n\n\n"
+    printf "TOKENS\n"
+    printf "¯¯¯¯¯¯\n\n"
+
+    printf "vault admin_policy token: $admin_policy_token\n\n"
+    printf "vault root token:         $VAULT_TOKEN\n\n"
+    printf "nomad bootstrap token:    $NOMAD_TOKEN\n\n"
+
+    printf "\n\nDone.\n\n"
 
 
 fi
